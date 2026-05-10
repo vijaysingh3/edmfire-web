@@ -26,7 +26,7 @@ function onAuthChange(callback) {
   firebase.auth().onAuthStateChanged(callback);
 }
 
-// custom token se sign in karna (Android WebView se aayega)
+// custom token se sign in karna (Android WebView se token aayega)
 async function signInWithCustomToken(token) {
   try {
     const result = await firebase.auth().signInWithCustomToken(token);

@@ -18,12 +18,10 @@ module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // preflight request handle karna
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // sirf POST allow karna
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -39,12 +37,12 @@ module.exports = async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    // custom token create karna same UID ke liye
+    // custom token create karna
     const customToken = await admin.auth().createCustomToken(uid);
 
     return res.status(200).json({ customToken, uid });
   } catch (error) {
     console.error("Custom token error:", error);
-    return res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({ error: "Invalid token: " + error.message });
   }
 };

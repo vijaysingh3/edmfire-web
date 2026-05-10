@@ -1,7 +1,7 @@
 // User Chat Page Logic
 
 let currentUser = null;
-let verifiedUid = null; // Android se aaya hua verified UID
+let verifiedUid = null;
 let selectedImageFile = null;
 
 // DOM elements
@@ -26,7 +26,7 @@ function getUrlParams() {
   };
 }
 
-// ID token se custom token lena API se
+// ID token ko custom token me exchange karna
 async function exchangeIdTokenForCustomToken(idToken) {
   try {
     const response = await fetch("/api/custom-token", {
@@ -49,15 +49,16 @@ async function exchangeIdTokenForCustomToken(idToken) {
 // app initialize karna
 async function initApp() {
   showLoading(true);
+  onlineStatus.textContent = "Connecting...";
+  onlineStatus.style.color = "#fcd34d";
 
   const urlParams = getUrlParams();
 
-  // agar URL me token hai to custom token exchange karke sign in karna
+  // CASE 1: URL me token hai (Android WebView se aaya)
   if (urlParams.token) {
     onlineStatus.textContent = "Authenticating...";
-    onlineStatus.style.color = "#fcd34d";
 
-    // ID token se custom token lena
+    // ID token se custom token exchange karna
     const customToken = await exchangeIdTokenForCustomToken(urlParams.token);
 
     if (customToken) {
@@ -80,11 +81,11 @@ async function initApp() {
       }
     }
 
-    // custom token se sign in fail hua
-    console.error("Custom token sign in failed");
+    // token exchange fail hua to fallback
+    console.error("Token auth failed, trying existing session...");
   }
 
-  // fallback: existing auth state check karna
+  // CASE 2: Existing auth state check karna (direct browser access ya session)
   onAuthChange(async (user) => {
     if (user) {
       currentUser = user;
@@ -98,6 +99,7 @@ async function initApp() {
 
       showLoading(false);
     } else {
+      // koi session nahi hai - error dikhana
       onlineStatus.textContent = "Not connected";
       onlineStatus.style.color = "#fca5a5";
       showLoading(false);
@@ -110,7 +112,6 @@ async function ensureUserRegistered() {
   try {
     const data = await loadUsersOnce();
     if (!data || !data[verifiedUid]) {
-      // naya user hai, register karna
       const username = "User_" + verifiedUid.substring(0, 6);
       await registerUser(verifiedUid, username);
     }
@@ -179,7 +180,6 @@ async function sendImageMessage() {
 
   closePreviewModal();
 
-  // uploading indicator dikhana
   const uploadingDiv = document.createElement("div");
   uploadingDiv.className = "message user";
   uploadingDiv.innerHTML = '<div class="msg-text">📷 Sending image...</div>';
@@ -189,7 +189,6 @@ async function sendImageMessage() {
   const imageUrl = await uploadImage(verifiedUid, selectedImageFile);
   selectedImageFile = null;
 
-  // uploading indicator hataana
   uploadingDiv.remove();
 
   if (imageUrl) {
