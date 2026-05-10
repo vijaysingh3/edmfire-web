@@ -26,3 +26,27 @@ Realtime Help Center web application using Firebase.
 
 - HTML + CSS + Vanilla JavaScript
 - Firebase SDK (Compat)
+## auth flow
+-┌─────────────────────────────────────────────────────┐
+│                  ANDROID APP                        │
+│                                                     │
+│  1. HelpActivity open → WebView loads page          │
+│     URL: https://edmfire-web.vercel.app/user/       │
+│     (NO token in URL)                               │
+│                                                     │
+│  2. onPageFinished() triggers                       │
+│  3. user.getIdToken() → ID Token milta hai          │
+│  4. evaluateJavascript("receiveAuthToken('TOKEN')") │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│                  WEB PAGE (/user/)                   │
+│                                                     │
+│  5. receiveAuthToken(idToken) called by Android     │
+│  6. POST /api/custom-token { idToken }              │
+│  7. Firebase Admin verify → customToken return      │
+│  8. signInWithCustomToken(customToken) ✅            │
+│  9. Chat loads!                                     │
+└─────────────────────────────────────────────────────┘
+-
