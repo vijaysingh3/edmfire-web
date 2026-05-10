@@ -175,10 +175,13 @@ async function sendTextMessage() {
   await sendMessage(verifiedUid, "user", text, "");
 }
 
-// image send karna
+// ✅ FIX: image send karna - file reference pehle save karna
 async function sendImageMessage() {
   if (!selectedImageFile || !verifiedUid) return;
 
+  // ✅ FIX: closePreviewModal() selectedImageFile ko null kar deta hai,
+  // isliye pehle file ka reference save kar lena
+  const fileToUpload = selectedImageFile;
   closePreviewModal();
 
   const uploadingDiv = document.createElement("div");
@@ -187,13 +190,30 @@ async function sendImageMessage() {
   chatContainer.appendChild(uploadingDiv);
   scrollToBottom();
 
-  const imageUrl = await uploadImage(verifiedUid, selectedImageFile);
-  selectedImageFile = null;
+  try {
+    // ✅ FIX: saved file reference use karna, selectedImageFile nahi
+    const imageUrl = await uploadImage(verifiedUid, fileToUpload);
 
-  uploadingDiv.remove();
+    uploadingDiv.remove();
 
-  if (imageUrl) {
-    await sendMessage(verifiedUid, "user", "", imageUrl);
+    if (imageUrl) {
+      await sendMessage(verifiedUid, "user", "", imageUrl);
+    } else {
+      console.error("Image upload failed - no URL returned");
+      const errorDiv = document.createElement("div");
+      errorDiv.className = "message user";
+      errorDiv.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed to send</div>';
+      chatContainer.appendChild(errorDiv);
+      scrollToBottom();
+    }
+  } catch (error) {
+    console.error("sendImageMessage error:", error);
+    uploadingDiv.remove();
+    const errorDiv = document.createElement("div");
+    errorDiv.className = "message user";
+    errorDiv.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed to send</div>';
+    chatContainer.appendChild(errorDiv);
+    scrollToBottom();
   }
 }
 
@@ -278,7 +298,7 @@ function formatTime(timestamp) {
   }
 }
 
-// HTML escape karna
+// ✅ FIX: HTML escape karna - map[m] tha map] likha hua tha
 function escapeHtml(text) {
   const map = {
     "&": "&amp;",

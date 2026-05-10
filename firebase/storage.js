@@ -8,11 +8,24 @@ async function uploadImage(uid, file) {
 
     const timestamp = Date.now();
     const fileName = timestamp + ".webp";
-    const storageRef = firebase.storage().ref("HelpCenterData/supportImages/" + uid + "/" + fileName);
+    const storagePath = "HelpCenterData/supportImages/" + uid + "/" + fileName;
+    const storageRef = firebase.storage().ref(storagePath);
 
-    const uploadTask = await storageRef.put(compressed);
-    const downloadURL = await uploadTask.ref.getDownloadURL();
+    // metadata set karna - content type zaroori hai
+    const metadata = {
+      contentType: "image/webp",
+      customMetadata: {
+        uploadedBy: uid
+      }
+    };
 
+    // upload karna
+    const uploadTask = await storageRef.put(compressed, metadata);
+
+    // download URL nikalna - naya method
+    const downloadURL = await storageRef.getDownloadURL();
+
+    console.log("Image uploaded successfully:", downloadURL);
     return downloadURL;
   } catch (error) {
     console.error("Upload image error:", error);
