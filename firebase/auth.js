@@ -11,10 +11,9 @@ function getCurrentUser() {
 }
 
 // admin access check karna
-// admin UID list yaha define karo
+// admin UID list - EDMFire admin accounts
 const ADMIN_UIDS = [
-  "ADMIN_UID_1",
-  "ADMIN_UID_2"
+  "UWSPOJ48pnXHAbizdNIHHaMWsRm2"
 ];
 
 function checkAdminAccess(user) {
@@ -27,13 +26,13 @@ function onAuthChange(callback) {
   firebase.auth().onAuthStateChanged(callback);
 }
 
-// anonymous sign in (user ke liye)
-async function signInAnonymously() {
+// custom token se sign in karna (Android WebView se aayega)
+async function signInWithCustomToken(token) {
   try {
-    const result = await firebase.auth().signInAnonymously();
+    const result = await firebase.auth().signInWithCustomToken(token);
     return result.user;
   } catch (error) {
-    console.error("Anonymous sign in error:", error);
+    console.error("Custom token sign in error:", error);
     return null;
   }
 }

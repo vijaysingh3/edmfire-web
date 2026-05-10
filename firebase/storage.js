@@ -8,7 +8,7 @@ async function uploadImage(uid, file) {
 
     const timestamp = Date.now();
     const fileName = timestamp + ".webp";
-    const storageRef = firebase.storage().ref("supportImages/" + uid + "/" + fileName);
+    const storageRef = firebase.storage().ref("HelpCenterData/supportImages/" + uid + "/" + fileName);
 
     const uploadTask = await storageRef.put(compressed);
     const downloadURL = await uploadTask.ref.getDownloadURL();

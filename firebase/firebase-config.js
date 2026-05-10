@@ -1,14 +1,15 @@
 // Firebase config aur initialization
-// Apne Firebase project ki values yaha dalna
+// EDMFire App - Firebase Web SDK Config
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyASlqa3FmDWzy_Tpo74-HjmXOz_BD5seKI",
+  authDomain: "edm-fire-app.firebaseapp.com",
+  databaseURL: "https://edm-fire-app-webapp.firebaseio.com",
+  projectId: "edm-fire-app",
+  storageBucket: "edm-fire-app.firebasestorage.app",
+  messagingSenderId: "794576309708",
+  appId: "1:794576309708:web:45e9c8a9c43233d98ba169",
+  measurementId: "G-ZL4MHPBKEF"
 };
 
 // Firebase initialize karna

@@ -1,6 +1,7 @@
 // User Chat Page Logic
 
 let currentUser = null;
+let verifiedUid = null; // Android se aaya hua UID
 let selectedImageFile = null;
 
 // DOM elements
@@ -17,40 +18,59 @@ const previewOverlay = document.getElementById("previewOverlay");
 const cancelPreview = document.getElementById("cancelPreview");
 const sendPreview = document.getElementById("sendPreview");
 
+// URL se token aur uid nikalna
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    token: params.get("token"),
+    uid: params.get("uid")
+  };
+}
+
 // app initialize karna
 async function initApp() {
   showLoading(true);
 
-  // auth state check karna
-  onAuthChange(async (user) => {
+  const urlParams = getUrlParams();
+
+  // agar URL me token hai to custom token se sign in karna
+  if (urlParams.token) {
+    const user = await signInWithCustomToken(urlParams.token);
     if (user) {
       currentUser = user;
+      verifiedUid = user.uid;
       onlineStatus.textContent = "Online";
       onlineStatus.style.color = "#86efac";
 
-      // user register karna agar naya hai
+      // user register check karna
       await ensureUserRegistered();
-
       // messages load karna
       loadUserChat();
-
       // unread count zero karna
-      resetUnread(currentUser.uid);
+      resetUnread(verifiedUid);
+
+      showLoading(false);
+      return;
+    }
+  }
+
+  // agar token nahi mila to auth state check karna
+  onAuthChange(async (user) => {
+    if (user) {
+      currentUser = user;
+      verifiedUid = user.uid;
+      onlineStatus.textContent = "Online";
+      onlineStatus.style.color = "#86efac";
+
+      await ensureUserRegistered();
+      loadUserChat();
+      resetUnread(verifiedUid);
 
       showLoading(false);
     } else {
-      // anonymous sign in karna
-      const newUser = await signInAnonymously();
-      if (newUser) {
-        currentUser = newUser;
-        await ensureUserRegistered();
-        loadUserChat();
-        showLoading(false);
-      } else {
-        onlineStatus.textContent = "Connection failed";
-        onlineStatus.style.color = "#fca5a5";
-        showLoading(false);
-      }
+      onlineStatus.textContent = "Not connected";
+      onlineStatus.style.color = "#fca5a5";
+      showLoading(false);
     }
   });
 }
@@ -59,10 +79,10 @@ async function initApp() {
 async function ensureUserRegistered() {
   try {
     const data = await loadUsersOnce();
-    if (!data || !data[currentUser.uid]) {
+    if (!data || !data[verifiedUid]) {
       // naya user hai, register karna
-      const username = "User_" + currentUser.uid.substring(0, 6);
-      await registerUser(currentUser.uid, username);
+      const username = "User_" + verifiedUid.substring(0, 6);
+      await registerUser(verifiedUid, username);
     }
   } catch (error) {
     console.error("User register check error:", error);
@@ -71,7 +91,7 @@ async function ensureUserRegistered() {
 
 // user chat load karna
 function loadUserChat() {
-  const uid = currentUser.uid;
+  const uid = verifiedUid;
 
   // pehle existing messages load karna
   loadMessages(uid, (data) => {
@@ -118,15 +138,15 @@ function appendMessage(msg) {
 // message send karna
 async function sendTextMessage() {
   const text = msgInput.value.trim();
-  if (!text || !currentUser) return;
+  if (!text || !verifiedUid) return;
 
   msgInput.value = "";
-  await sendMessage(currentUser.uid, "user", text, "");
+  await sendMessage(verifiedUid, "user", text, "");
 }
 
 // image send karna
 async function sendImageMessage() {
-  if (!selectedImageFile || !currentUser) return;
+  if (!selectedImageFile || !verifiedUid) return;
 
   closePreviewModal();
 
@@ -137,14 +157,14 @@ async function sendImageMessage() {
   chatContainer.appendChild(uploadingDiv);
   scrollToBottom();
 
-  const imageUrl = await uploadImage(currentUser.uid, selectedImageFile);
+  const imageUrl = await uploadImage(verifiedUid, selectedImageFile);
   selectedImageFile = null;
 
   // uploading indicator hataana
   uploadingDiv.remove();
 
   if (imageUrl) {
-    await sendMessage(currentUser.uid, "user", "", imageUrl);
+    await sendMessage(verifiedUid, "user", "", imageUrl);
   }
 }
 
