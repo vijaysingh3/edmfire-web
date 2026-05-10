@@ -1,7 +1,7 @@
 // User Chat Page Logic
 
 let currentUser = null;
-let verifiedUid = null; // Android se aaya hua UID
+let verifiedUid = null; // Android se aaya hua verified UID
 let selectedImageFile = null;
 
 // DOM elements
@@ -18,13 +18,32 @@ const previewOverlay = document.getElementById("previewOverlay");
 const cancelPreview = document.getElementById("cancelPreview");
 const sendPreview = document.getElementById("sendPreview");
 
-// URL se token aur uid nikalna
+// URL se token nikalna
 function getUrlParams() {
   const params = new URLSearchParams(window.location.search);
   return {
-    token: params.get("token"),
-    uid: params.get("uid")
+    token: params.get("token")
   };
+}
+
+// ID token se custom token lena API se
+async function exchangeIdTokenForCustomToken(idToken) {
+  try {
+    const response = await fetch("/api/custom-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: idToken })
+    });
+    const data = await response.json();
+    if (data.customToken) {
+      return data.customToken;
+    }
+    console.error("Token exchange failed:", data.error);
+    return null;
+  } catch (error) {
+    console.error("Token exchange API error:", error);
+    return null;
+  }
 }
 
 // app initialize karna
@@ -33,28 +52,39 @@ async function initApp() {
 
   const urlParams = getUrlParams();
 
-  // agar URL me token hai to custom token se sign in karna
+  // agar URL me token hai to custom token exchange karke sign in karna
   if (urlParams.token) {
-    const user = await signInWithCustomToken(urlParams.token);
-    if (user) {
-      currentUser = user;
-      verifiedUid = user.uid;
-      onlineStatus.textContent = "Online";
-      onlineStatus.style.color = "#86efac";
+    onlineStatus.textContent = "Authenticating...";
+    onlineStatus.style.color = "#fcd34d";
 
-      // user register check karna
-      await ensureUserRegistered();
-      // messages load karna
-      loadUserChat();
-      // unread count zero karna
-      resetUnread(verifiedUid);
+    // ID token se custom token lena
+    const customToken = await exchangeIdTokenForCustomToken(urlParams.token);
 
-      showLoading(false);
-      return;
+    if (customToken) {
+      const user = await signInWithCustomToken(customToken);
+      if (user) {
+        currentUser = user;
+        verifiedUid = user.uid;
+        onlineStatus.textContent = "Online";
+        onlineStatus.style.color = "#86efac";
+
+        await ensureUserRegistered();
+        loadUserChat();
+        resetUnread(verifiedUid);
+
+        // URL se token hataana (security)
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        showLoading(false);
+        return;
+      }
     }
+
+    // custom token se sign in fail hua
+    console.error("Custom token sign in failed");
   }
 
-  // agar token nahi mila to auth state check karna
+  // fallback: existing auth state check karna
   onAuthChange(async (user) => {
     if (user) {
       currentUser = user;
@@ -93,7 +123,6 @@ async function ensureUserRegistered() {
 function loadUserChat() {
   const uid = verifiedUid;
 
-  // pehle existing messages load karna
   loadMessages(uid, (data) => {
     clearChat();
     if (data) {
@@ -177,14 +206,12 @@ imageInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  // sirf image files
   if (!file.type.startsWith("image/")) {
     return;
   }
 
   selectedImageFile = file;
 
-  // preview dikhana
   const reader = new FileReader();
   reader.onload = (event) => {
     previewImage.src = event.target.result;
@@ -192,7 +219,6 @@ imageInput.addEventListener("change", (e) => {
   };
   reader.readAsDataURL(file);
 
-  // input reset karna
   imageInput.value = "";
 });
 
