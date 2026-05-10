@@ -1,26 +1,18 @@
 // Firebase Storage helper functions
 
-// image upload karna Firebase Storage me
 function uploadImage(uid, file) {
   try {
-    // pehle compress karna
     return compressImageBeforeUpload(file).then(function(compressed) {
       var timestamp = Date.now();
       var fileName = timestamp + ".webp";
       var storagePath = "HelpCenterData/supportImages/" + uid + "/" + fileName;
       var storageRef = firebase.storage().ref(storagePath);
+      var metadata = { contentType: "image/webp" };
 
-      // metadata set karna
-      var metadata = {
-        contentType: "image/webp"
-      };
-
-      // upload karna
       return storageRef.put(compressed, metadata).then(function() {
-        // download URL nikalna - storageRef se directly
         return storageRef.getDownloadURL();
       }).then(function(downloadURL) {
-        console.log("Image uploaded successfully:", downloadURL);
+        console.log("Image uploaded:", downloadURL);
         return downloadURL;
       });
     });
@@ -30,7 +22,6 @@ function uploadImage(uid, file) {
   }
 }
 
-// image compress karna upload se pehle
 function compressImageBeforeUpload(file) {
   return new Promise(function(resolve, reject) {
     var maxWidth = 800;
@@ -45,29 +36,15 @@ function compressImageBeforeUpload(file) {
         var width = img.width;
         var height = img.height;
 
-        // size adjust karna
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-        if (height > maxHeight) {
-          width = (width * maxHeight) / height;
-          height = maxHeight;
-        }
+        if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
+        if (height > maxHeight) { width = (width * maxHeight) / height; height = maxHeight; }
 
         canvas.width = width;
         canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
 
-        var ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // webp me convert karna
         canvas.toBlob(function(blob) {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error("Image compression failed"));
-          }
+          if (blob) { resolve(blob); } else { reject(new Error("Compression failed")); }
         }, "image/webp", quality);
       };
       img.onerror = reject;

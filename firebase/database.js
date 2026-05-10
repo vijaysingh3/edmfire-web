@@ -1,55 +1,53 @@
 // Firebase Realtime Database helper functions
 
-// users list load karna
+// users list load karna (realtime)
 function loadUsers(callback) {
-  var ref = firebase.database().ref("helpCenter/users");
-  ref.on("value", function(snapshot) {
-    var data = snapshot.val();
-    callback(data);
+  firebase.database().ref("helpCenter/users").on("value", function(snapshot) {
+    callback(snapshot.val());
   });
 }
 
 // users list sirf ek baar load karna
 function loadUsersOnce() {
   return new Promise(function(resolve, reject) {
-    var ref = firebase.database().ref("helpCenter/users");
-    ref.once("value", function(snapshot) {
+    firebase.database().ref("helpCenter/users").once("value", function(snapshot) {
       resolve(snapshot.val());
     }, reject);
   });
 }
 
-// messages load karna specific user ke
+// messages load karna specific user ke (realtime)
 function loadMessages(uid, callback) {
-  var ref = firebase.database().ref("helpCenter/chats/" + uid);
-  ref.on("value", function(snapshot) {
-    var data = snapshot.val();
-    callback(data);
+  firebase.database().ref("helpCenter/chats/" + uid).on("value", function(snapshot) {
+    callback(snapshot.val());
   });
 }
 
 // messages sirf ek baar load karna
 function loadMessagesOnce(uid) {
   return new Promise(function(resolve, reject) {
-    var ref = firebase.database().ref("helpCenter/chats/" + uid);
-    ref.once("value", function(snapshot) {
+    firebase.database().ref("helpCenter/chats/" + uid).once("value", function(snapshot) {
       resolve(snapshot.val());
     }, reject);
   });
 }
 
-// message bhejna
-function sendMessage(uid, sender, text, imageUrl) {
+// message bhejna - seen field + replyTo support
+function sendMessage(uid, sender, text, imageUrl, replyTo) {
   var ref = firebase.database().ref("helpCenter/chats/" + uid);
   var newMsg = {
     sender: sender,
     text: text || "",
     imageUrl: imageUrl || "",
+    seen: false,
     timestamp: Date.now()
   };
+  if (replyTo) {
+    newMsg.replyTo = replyTo;
+  }
   return ref.push(newMsg).then(function() {
-    // user ka unread count update karna (admin bhej raha hai to user ka unread badhana)
-    if (sender === "admin") {
+    // USER bhej raha hai to admin ke liye unread badhana
+    if (sender === "user") {
       return incrementUnread(uid);
     }
     return true;
@@ -59,15 +57,62 @@ function sendMessage(uid, sender, text, imageUrl) {
   });
 }
 
+// messages as seen mark karna
+// readerRole = "admin" means admin reading → mark user's messages as seen
+// readerRole = "user" means user reading → mark admin's messages as seen
+function markMessagesAsSeen(uid, readerRole) {
+  var senderToMark = readerRole === "admin" ? "user" : "admin";
+  var ref = firebase.database().ref("helpCenter/chats/" + uid);
+  return ref.once("value").then(function(snapshot) {
+    var data = snapshot.val();
+    if (!data) return;
+    var updates = {};
+    var keys = Object.keys(data);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (data[key].sender === senderToMark && data[key].seen === false) {
+        updates[key + "/seen"] = true;
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      return ref.update(updates);
+    }
+  }).catch(function(error) {
+    console.error("Mark seen error:", error);
+  });
+}
+
+// specific message delete karna
+function deleteMessage(uid, msgKey) {
+  return firebase.database().ref("helpCenter/chats/" + uid + "/" + msgKey).remove()
+    .catch(function(error) {
+      console.error("Delete message error:", error);
+    });
+}
+
+// FCM token save karna user profile me
+function saveFcmToken(uid, token) {
+  return firebase.database().ref("helpCenter/users/" + uid + "/fcmToken").set(token)
+    .catch(function(error) {
+      console.error("Save FCM token error:", error);
+    });
+}
+
+// FCM token get karna
+function getFcmToken(uid) {
+  return new Promise(function(resolve, reject) {
+    firebase.database().ref("helpCenter/users/" + uid + "/fcmToken").once("value", function(snapshot) {
+      resolve(snapshot.val());
+    }, reject);
+  });
+}
+
 // unread count update karna
 function updateUnread(uid, count) {
-  var ref = firebase.database().ref("helpCenter/users/" + uid + "/unreadMsg");
-  return ref.set(count).then(function() {
-    return true;
-  }).catch(function(error) {
-    console.error("Update unread error:", error);
-    return false;
-  });
+  return firebase.database().ref("helpCenter/users/" + uid + "/unreadMsg").set(count)
+    .catch(function(error) {
+      console.error("Update unread error:", error);
+    });
 }
 
 // unread count increment karna
@@ -78,37 +123,30 @@ function incrementUnread(uid) {
     return ref.set(current + 1);
   }).catch(function(error) {
     console.error("Increment unread error:", error);
-    return false;
   });
 }
 
 // unread count zero karna
 function resetUnread(uid) {
-  var ref = firebase.database().ref("helpCenter/users/" + uid + "/unreadMsg");
-  return ref.set(0).then(function() {
-    return true;
-  }).catch(function(error) {
-    console.error("Reset unread error:", error);
-    return false;
-  });
+  return firebase.database().ref("helpCenter/users/" + uid + "/unreadMsg").set(0)
+    .catch(function(error) {
+      console.error("Reset unread error:", error);
+    });
 }
 
-// user register ya update karna users node me
+// user register karna users node me (fcmToken field added)
 function registerUser(uid, username) {
-  var ref = firebase.database().ref("helpCenter/users/" + uid);
-  return ref.set({
+  return firebase.database().ref("helpCenter/users/" + uid).set({
     userId: uid,
     username: username,
-    unreadMsg: 0
-  }).then(function() {
-    return true;
+    unreadMsg: 0,
+    fcmToken: ""
   }).catch(function(error) {
     console.error("Register user error:", error);
-    return false;
   });
 }
 
-// realtime messages listener
+// realtime messages listener (child_added)
 function listenRealtimeMessages(uid, callback) {
   var ref = firebase.database().ref("helpCenter/chats/" + uid);
   ref.on("child_added", function(snapshot) {
@@ -119,6 +157,5 @@ function listenRealtimeMessages(uid, callback) {
 
 // listener remove karna
 function offMessagesListener(uid) {
-  var ref = firebase.database().ref("helpCenter/chats/" + uid);
-  ref.off();
+  firebase.database().ref("helpCenter/chats/" + uid).off();
 }
