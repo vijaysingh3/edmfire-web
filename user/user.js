@@ -42,13 +42,13 @@ window.receiveAuthToken = async function(idToken) {
       if (result && result.user) {
         currentUser = result.user;
         verifiedUid = result.user.uid;
+        console.log("Auth success, uid:", verifiedUid);
         onlineStatus.textContent = "Online";
         onlineStatus.style.color = "#86efac";
         await ensureUserRegistered();
         loadUserChat();
         resetUnread(verifiedUid);
         markMessagesAsSeen(verifiedUid, "user");
-        // FIX: auth ke baad pending FCM token save karna
         if (pendingFcmToken) {
           saveFcmToken(verifiedUid, pendingFcmToken);
           pendingFcmToken = null;
@@ -70,13 +70,12 @@ window.receiveAuthToken = async function(idToken) {
 };
 
 // Android se FCM token receive karna
-// FIX: agar auth nahi hua toh token queue karna, baad me save karna
 window.receiveFcmToken = function(token) {
   if (!token) return;
+  console.log("FCM token received:", token.substring(0, 20) + "...");
   if (verifiedUid) {
     saveFcmToken(verifiedUid, token);
   } else {
-    // auth abhi nahi hua, token baad me save karna
     pendingFcmToken = token;
   }
 };
@@ -109,13 +108,13 @@ async function initApp() {
     if (user && !currentUser) {
       currentUser = user;
       verifiedUid = user.uid;
+      console.log("onAuthChange: uid:", verifiedUid);
       onlineStatus.textContent = "Online";
       onlineStatus.style.color = "#86efac";
       ensureUserRegistered().then(function() {
         loadUserChat();
         resetUnread(verifiedUid);
         markMessagesAsSeen(verifiedUid, "user");
-        // FIX: auth ke baad pending FCM token save karna
         if (pendingFcmToken) {
           saveFcmToken(verifiedUid, pendingFcmToken);
           pendingFcmToken = null;
@@ -194,7 +193,6 @@ function appendMessage(msgKey, msg) {
   }
 
   content += '<div class="msg-time">' + formatTime(msg.timestamp) + " " + ticks + "</div>";
-
   div.innerHTML = content;
   chatContainer.appendChild(div);
 
@@ -216,21 +214,16 @@ function appendMessage(msgKey, msg) {
 
 // context menu
 function showContextMenu(e, msgKey, msg) {
-  contextMsgKey = msgKey;
-  contextMsgData = msg;
+  contextMsgKey = msgKey; contextMsgData = msg;
   contextMenu.style.display = "block";
-  var x = e.clientX || 50;
-  var y = e.clientY || 50;
+  var x = e.clientX || 50; var y = e.clientY || 50;
   if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
   if (y + 130 > window.innerHeight) y = window.innerHeight - 140;
-  contextMenu.style.left = x + "px";
-  contextMenu.style.top = y + "px";
+  contextMenu.style.left = x + "px"; contextMenu.style.top = y + "px";
 }
 
 function hideContextMenu() {
-  contextMenu.style.display = "none";
-  contextMsgKey = null;
-  contextMsgData = null;
+  contextMenu.style.display = "none"; contextMsgKey = null; contextMsgData = null;
 }
 
 document.getElementById("ctxReply").addEventListener("click", function() {
@@ -238,30 +231,22 @@ document.getElementById("ctxReply").addEventListener("click", function() {
   replyingTo = contextMsgKey;
   replyName.textContent = contextMsgData.sender === "user" ? "You" : "Admin";
   replyText.textContent = contextMsgData.text || "📷 Image";
-  replyBar.style.display = "flex";
-  msgInput.focus();
-  hideContextMenu();
+  replyBar.style.display = "flex"; msgInput.focus(); hideContextMenu();
 });
 
 document.getElementById("ctxCopy").addEventListener("click", function() {
   if (!contextMsgData || !contextMsgData.text) return;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(contextMsgData.text);
-  } else {
-    var ta = document.createElement("textarea");
-    ta.value = contextMsgData.text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
+  if (navigator.clipboard) navigator.clipboard.writeText(contextMsgData.text);
+  else {
+    var ta = document.createElement("textarea"); ta.value = contextMsgData.text;
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
   }
   hideContextMenu();
 });
 
 document.getElementById("ctxDelete").addEventListener("click", function() {
   if (!contextMsgKey || !verifiedUid) return;
-  deleteMessage(verifiedUid, contextMsgKey);
-  hideContextMenu();
+  deleteMessage(verifiedUid, contextMsgKey); hideContextMenu();
 });
 
 document.addEventListener("click", function(e) {
@@ -269,23 +254,27 @@ document.addEventListener("click", function(e) {
 });
 
 replyClose.addEventListener("click", function() {
-  replyingTo = null;
-  replyBar.style.display = "none";
+  replyingTo = null; replyBar.style.display = "none";
 });
 
 // message send karna
 async function sendTextMessage() {
   var text = msgInput.value.trim();
-  if (!text || !verifiedUid) return;
+  console.log("sendTextMessage called, text:", text, "uid:", verifiedUid);
+
+  if (!text) { console.log("No text, returning"); return; }
+  if (!verifiedUid) { console.log("No verifiedUid, returning"); return; }
 
   msgInput.value = "";
   var replyRef = replyingTo;
   replyingTo = null;
   replyBar.style.display = "none";
 
-  var success = await sendMessage(verifiedUid, "user", text, "", replyRef);
-  if (!success) {
-    console.error("Message send failed");
+  try {
+    var success = await sendMessage(verifiedUid, "user", text, "", replyRef);
+    console.log("sendMessage result:", success);
+  } catch (error) {
+    console.error("sendTextMessage error:", error);
   }
 }
 
