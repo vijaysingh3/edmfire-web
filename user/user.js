@@ -8,6 +8,7 @@ var replyingTo = null;
 var contextMsgKey = null;
 var contextMsgData = null;
 var allMessagesData = {};
+var pendingFcmToken = null;
 
 // DOM elements
 var chatContainer = document.getElementById("chatContainer");
@@ -47,6 +48,11 @@ window.receiveAuthToken = async function(idToken) {
         loadUserChat();
         resetUnread(verifiedUid);
         markMessagesAsSeen(verifiedUid, "user");
+        // FIX: auth ke baad pending FCM token save karna
+        if (pendingFcmToken) {
+          saveFcmToken(verifiedUid, pendingFcmToken);
+          pendingFcmToken = null;
+        }
         return;
       }
     }
@@ -64,9 +70,15 @@ window.receiveAuthToken = async function(idToken) {
 };
 
 // Android se FCM token receive karna
+// FIX: agar auth nahi hua toh token queue karna, baad me save karna
 window.receiveFcmToken = function(token) {
-  if (!verifiedUid || !token) return;
-  saveFcmToken(verifiedUid, token);
+  if (!token) return;
+  if (verifiedUid) {
+    saveFcmToken(verifiedUid, token);
+  } else {
+    // auth abhi nahi hua, token baad me save karna
+    pendingFcmToken = token;
+  }
 };
 
 // ID token ko custom token me exchange karna
@@ -103,6 +115,11 @@ async function initApp() {
         loadUserChat();
         resetUnread(verifiedUid);
         markMessagesAsSeen(verifiedUid, "user");
+        // FIX: auth ke baad pending FCM token save karna
+        if (pendingFcmToken) {
+          saveFcmToken(verifiedUid, pendingFcmToken);
+          pendingFcmToken = null;
+        }
       });
       showLoading(false);
     } else if (!currentUser) {
@@ -141,7 +158,6 @@ function loadUserChat() {
       }
       scrollToBottom();
     }
-    // mark admin messages as seen
     markMessagesAsSeen(verifiedUid, "user");
   });
 }
@@ -160,7 +176,6 @@ function appendMessage(msgKey, msg) {
 
   var content = "";
 
-  // reply quote
   if (msg.replyTo && allMessagesData[msg.replyTo]) {
     var orig = allMessagesData[msg.replyTo];
     content += '<div class="msg-reply">' + escapeHtml((orig.text || "📷 Image").substring(0, 60)) + '</div>';
@@ -173,7 +188,6 @@ function appendMessage(msgKey, msg) {
     content += '<img src="' + msg.imageUrl + '" alt="Image" loading="lazy" onclick="openFullImage(this.src)">';
   }
 
-  // time + seen ticks
   var ticks = "";
   if (msg.sender === "user") {
     ticks = msg.seen ? '<span class="msg-ticks read">✓✓</span>' : '<span class="msg-ticks sent">✓</span>';
@@ -184,51 +198,41 @@ function appendMessage(msgKey, msg) {
   div.innerHTML = content;
   chatContainer.appendChild(div);
 
-  // context menu on long press / right click
   div.addEventListener("contextmenu", function(e) {
     e.preventDefault();
     showContextMenu(e, msgKey, msg);
   });
 
-  // long press for mobile
   var pressTimer = null;
-  div.addEventListener("touchstart", function(e) {
+  div.addEventListener("touchstart", function() {
     pressTimer = setTimeout(function() {
-      e.preventDefault();
-      showContextMenu(e.touches[0], msgKey, msg);
+      var touch = { clientX: 50, clientY: 50 };
+      showContextMenu(touch, msgKey, msg);
     }, 500);
-  }, { passive: false });
+  }, { passive: true });
   div.addEventListener("touchend", function() { clearTimeout(pressTimer); });
   div.addEventListener("touchmove", function() { clearTimeout(pressTimer); });
 }
 
-// context menu dikhana
+// context menu
 function showContextMenu(e, msgKey, msg) {
   contextMsgKey = msgKey;
   contextMsgData = msg;
   contextMenu.style.display = "block";
-
-  var x = e.clientX || e.pageX;
-  var y = e.clientY || e.pageY;
-
-  // adjust position to stay in viewport
-  var menuW = 160;
-  var menuH = 130;
-  if (x + menuW > window.innerWidth) x = window.innerWidth - menuW - 10;
-  if (y + menuH > window.innerHeight) y = window.innerHeight - menuH - 10;
-
+  var x = e.clientX || 50;
+  var y = e.clientY || 50;
+  if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
+  if (y + 130 > window.innerHeight) y = window.innerHeight - 140;
   contextMenu.style.left = x + "px";
   contextMenu.style.top = y + "px";
 }
 
-// hide context menu
 function hideContextMenu() {
   contextMenu.style.display = "none";
   contextMsgKey = null;
   contextMsgData = null;
 }
 
-// context menu actions
 document.getElementById("ctxReply").addEventListener("click", function() {
   if (!contextMsgData) return;
   replyingTo = contextMsgKey;
@@ -260,12 +264,10 @@ document.getElementById("ctxDelete").addEventListener("click", function() {
   hideContextMenu();
 });
 
-// tap anywhere to close context menu
 document.addEventListener("click", function(e) {
   if (!contextMenu.contains(e.target)) hideContextMenu();
 });
 
-// reply close
 replyClose.addEventListener("click", function() {
   replyingTo = null;
   replyBar.style.display = "none";
@@ -281,7 +283,10 @@ async function sendTextMessage() {
   replyingTo = null;
   replyBar.style.display = "none";
 
-  await sendMessage(verifiedUid, "user", text, "", replyRef);
+  var success = await sendMessage(verifiedUid, "user", text, "", replyRef);
+  if (!success) {
+    console.error("Message send failed");
+  }
 }
 
 // image send karna
@@ -318,7 +323,7 @@ async function sendImageMessage() {
 function showErrorBubble() {
   var div = document.createElement("div");
   div.className = "message user";
-  div.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed</div>';
+  div.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Failed</div>';
   chatContainer.appendChild(div);
   scrollToBottom();
 }
@@ -339,7 +344,6 @@ imageInput.addEventListener("change", function(e) {
   imageInput.value = "";
 });
 
-// preview modal controls
 cancelPreview.addEventListener("click", closePreviewModal);
 previewOverlay.addEventListener("click", closePreviewModal);
 sendPreview.addEventListener("click", sendImageMessage);
@@ -352,18 +356,15 @@ function closePreviewModal() {
 
 function openFullImage(src) { window.open(src, "_blank"); }
 
-// send button + enter key
 sendBtn.addEventListener("click", sendTextMessage);
 msgInput.addEventListener("keypress", function(e) {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTextMessage(); }
 });
 
-// auto scroll
 function scrollToBottom() {
   requestAnimationFrame(function() { chatContainer.scrollTop = chatContainer.scrollHeight; });
 }
 
-// time format
 function formatTime(timestamp) {
   if (!timestamp) return "";
   var date = new Date(timestamp);
@@ -376,14 +377,12 @@ function formatTime(timestamp) {
   return date.getDate() + " " + date.toLocaleString("en", { month: "short" }) + ", " + h + ":" + m + " " + ampm;
 }
 
-// HTML escape
 function escapeHtml(text) {
   var d = document.createElement("div");
   d.appendChild(document.createTextNode(text));
   return d.innerHTML;
 }
 
-// loading
 function showLoading(show) {
   var overlay = document.getElementById("loadingOverlay");
   if (show) {
