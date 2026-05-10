@@ -29,8 +29,9 @@ var sendPreview = document.getElementById("sendPreview");
 async function initApp() {
   showLoading(true);
 
-  onAuthChange(async function(user) {
+  onAuthChange(function(user) {
     if (user) {
+      // admin access check karna
       if (!checkAdminAccess(user)) {
         chatHeaderName.textContent = "Access Denied";
         chatHeaderStatus.textContent = "UID: " + user.uid + " is not authorized";
@@ -147,13 +148,15 @@ function renderUserList(data) {
     return;
   }
 
+  // unread count ke hisaab me sort karna
   var sortedUids = uids.sort(function(a, b) {
     var unreadA = data[a].unreadMsg || 0;
     var unreadB = data[b].unreadMsg || 0;
     return unreadB - unreadA;
   });
 
-  sortedUids.forEach(function(uid) {
+  for (var i = 0; i < sortedUids.length; i++) {
+    var uid = sortedUids[i];
     var user = data[uid];
     var div = document.createElement("div");
     div.className = "user-item" + (uid === selectedUserUid ? " active" : "");
@@ -161,15 +164,18 @@ function renderUserList(data) {
 
     var initial = (user.username || "U").charAt(0).toUpperCase();
     var unread = user.unreadMsg || 0;
+    var lastMsgText = unread > 0 ? unread + " new message" + (unread > 1 ? "s" : "") : "No new messages";
 
-    div.innerHTML = '<div class="user-item-content"><div class="user-avatar">' + initial + '</div><div class="user-info"><div class="user-name">' + escapeHtml(user.username || "Unknown") + '</div><div class="last-msg">' + (unread > 0 ? unread + " new message" + (unread > 1 ? "s" : "") : "No new messages") + '</div></div></div>' + (unread > 0 ? '<div class="badge">' + unread + "</div>" : "");
+    div.innerHTML = '<div class="user-item-content"><div class="user-avatar">' + initial + '</div><div class="user-info"><div class="user-name">' + escapeHtml(user.username || "Unknown") + '</div><div class="last-msg">' + lastMsgText + '</div></div></div>' + (unread > 0 ? '<div class="badge">' + unread + "</div>" : "");
 
-    div.addEventListener("click", function() {
-      selectUser(uid, user);
-    });
+    (function(currentUid, currentUser) {
+      div.addEventListener("click", function() {
+        selectUser(currentUid, currentUser);
+      });
+    })(uid, user);
 
     userListEl.appendChild(div);
-  });
+  }
 }
 
 // user select karna
@@ -180,12 +186,13 @@ function selectUser(uid, userData) {
   chatHeaderStatus.textContent = "UID: " + uid.substring(0, 8) + "...";
   bottomBar.style.display = "flex";
 
-  document.querySelectorAll(".user-item").forEach(function(el) {
-    el.classList.remove("active");
-    if (el.getAttribute("data-uid") === uid) {
-      el.classList.add("active");
+  var items = document.querySelectorAll(".user-item");
+  for (var i = 0; i < items.length; i++) {
+    items[i].classList.remove("active");
+    if (items[i].getAttribute("data-uid") === uid) {
+      items[i].classList.add("active");
     }
-  });
+  }
 
   closeSidebar();
   resetUnread(uid);
@@ -203,9 +210,9 @@ function loadSelectedUserChat(uid) {
       var keys = Object.keys(data).sort(function(a, b) {
         return (data[a].timestamp || 0) - (data[b].timestamp || 0);
       });
-      keys.forEach(function(key) {
-        appendMessage(data[key]);
-      });
+      for (var i = 0; i < keys.length; i++) {
+        appendMessage(data[keys[i]]);
+      }
       scrollToBottom();
     }
   });
@@ -245,8 +252,7 @@ async function sendTextMessage() {
 async function sendImageMessage() {
   if (!selectedImageFile || !selectedUserUid) return;
 
-  // BUG FIX: closePreviewModal() selectedImageFile null kar deta hai
-  // isliye pehle file ka reference save kar lena
+  // FIX: closePreviewModal() selectedImageFile null kar deta hai
   var fileToUpload = selectedImageFile;
   closePreviewModal();
 
@@ -338,12 +344,14 @@ searchInput.addEventListener("input", function(e) {
   }
 
   var filtered = {};
-  Object.keys(usersData).forEach(function(uid) {
+  var allUids = Object.keys(usersData);
+  for (var i = 0; i < allUids.length; i++) {
+    var uid = allUids[i];
     var user = usersData[uid];
-    if ((user.username || "").toLowerCase().includes(query)) {
+    if ((user.username || "").toLowerCase().indexOf(query) !== -1) {
       filtered[uid] = user;
     }
-  });
+  }
   renderUserList(filtered);
 });
 
@@ -389,7 +397,7 @@ function formatTime(timestamp) {
   }
 }
 
-// HTML escape karna - safe method
+// HTML escape karna - safe DOM method
 function escapeHtml(text) {
   var div = document.createElement("div");
   div.appendChild(document.createTextNode(text));

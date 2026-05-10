@@ -32,9 +32,8 @@ window.receiveAuthToken = async function(idToken) {
     var customToken = await exchangeIdTokenForCustomToken(idToken);
 
     if (customToken) {
-      // BUG FIX: signInWithCustomToken returns { user: FirebaseUser, error: null }
-      // isliye result.user use karna, result.uid nahi
       var result = await signInWithCustomToken(customToken);
+      // signInWithCustomToken returns { user: FirebaseUser, error: null }
       if (result && result.user) {
         currentUser = result.user;
         verifiedUid = result.user.uid;
@@ -48,7 +47,6 @@ window.receiveAuthToken = async function(idToken) {
       }
     }
 
-    // custom token se bhi fail hua
     console.error("Custom token sign in failed");
     onlineStatus.textContent = "Auth failed";
     onlineStatus.style.color = "#fca5a5";
@@ -88,21 +86,19 @@ async function initApp() {
   onlineStatus.textContent = "Connecting...";
   onlineStatus.style.color = "#fcd34d";
 
-  // pehle check karna ki koi existing session to nahi hai
-  onAuthChange(async function(user) {
+  onAuthChange(function(user) {
     if (user && !currentUser) {
-      // ye direct Firebase user hai (onAuthStateChanged se)
       currentUser = user;
       verifiedUid = user.uid;
       onlineStatus.textContent = "Online";
       onlineStatus.style.color = "#86efac";
 
-      await ensureUserRegistered();
-      loadUserChat();
-      resetUnread(verifiedUid);
+      ensureUserRegistered().then(function() {
+        loadUserChat();
+        resetUnread(verifiedUid);
+      });
       showLoading(false);
     } else if (!currentUser) {
-      // Android se token aane ka wait karna
       onlineStatus.textContent = "Waiting for auth...";
       onlineStatus.style.color = "#fcd34d";
       showLoading(false);
@@ -138,9 +134,9 @@ function loadUserChat() {
       var keys = Object.keys(data).sort(function(a, b) {
         return (data[a].timestamp || 0) - (data[b].timestamp || 0);
       });
-      keys.forEach(function(key) {
-        appendMessage(data[key]);
-      });
+      for (var i = 0; i < keys.length; i++) {
+        appendMessage(data[keys[i]]);
+      }
       scrollToBottom();
     }
   });
@@ -149,7 +145,9 @@ function loadUserChat() {
 // chat clear karna
 function clearChat() {
   var messages = chatContainer.querySelectorAll(".message, .date-separator");
-  messages.forEach(function(el) { el.remove(); });
+  for (var i = 0; i < messages.length; i++) {
+    messages[i].remove();
+  }
 }
 
 // message append karna chat me
@@ -186,7 +184,7 @@ async function sendTextMessage() {
 async function sendImageMessage() {
   if (!selectedImageFile || !verifiedUid) return;
 
-  // BUG FIX: closePreviewModal() selectedImageFile null kar deta hai
+  // FIX: closePreviewModal() selectedImageFile null kar deta hai
   // isliye pehle file ka reference save kar lena
   var fileToUpload = selectedImageFile;
   closePreviewModal();
@@ -231,10 +229,7 @@ imgBtn.addEventListener("click", function() {
 imageInput.addEventListener("change", function(e) {
   var file = e.target.files[0];
   if (!file) return;
-
-  if (!file.type.startsWith("image/")) {
-    return;
-  }
+  if (!file.type.startsWith("image/")) return;
 
   selectedImageFile = file;
 
@@ -244,7 +239,6 @@ imageInput.addEventListener("change", function(e) {
     imagePreviewModal.style.display = "flex";
   };
   reader.readAsDataURL(file);
-
   imageInput.value = "";
 });
 
