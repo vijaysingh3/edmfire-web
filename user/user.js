@@ -3,6 +3,7 @@
 let currentUser = null;
 let verifiedUid = null;
 let selectedImageFile = null;
+let isAuthenticating = false;
 
 // DOM elements
 const chatContainer = document.getElementById("chatContainer");
@@ -18,15 +19,49 @@ const previewOverlay = document.getElementById("previewOverlay");
 const cancelPreview = document.getElementById("cancelPreview");
 const sendPreview = document.getElementById("sendPreview");
 
-// URL se token nikalna
-function getUrlParams() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    token: params.get("token")
-  };
-}
+// Android WebView se token receive karna
+// ye function Android app ka evaluateJavascript() call karega
+window.receiveAuthToken = async function(idToken) {
+  if (isAuthenticating || currentUser) return;
+  isAuthenticating = true;
 
-// ID token ko custom token me exchange karna
+  onlineStatus.textContent = "Authenticating...";
+  onlineStatus.style.color = "#fcd34d";
+
+  try {
+    // ID token ko custom token me exchange karna
+    const customToken = await exchangeIdTokenForCustomToken(idToken);
+
+    if (customToken) {
+      const user = await signInWithCustomToken(customToken);
+      if (user) {
+        currentUser = user;
+        verifiedUid = user.uid;
+        onlineStatus.textContent = "Online";
+        onlineStatus.style.color = "#86efac";
+
+        await ensureUserRegistered();
+        loadUserChat();
+        resetUnread(verifiedUid);
+        return;
+      }
+    }
+
+    // custom token se bhi fail hua
+    console.error("Custom token sign in failed");
+    onlineStatus.textContent = "Auth failed";
+    onlineStatus.style.color = "#fca5a5";
+  } catch (error) {
+    console.error("receiveAuthToken error:", error);
+    onlineStatus.textContent = "Auth error";
+    onlineStatus.style.color = "#fca5a5";
+  } finally {
+    isAuthenticating = false;
+    showLoading(false);
+  }
+};
+
+// ID token ko custom token me exchange karna API se
 async function exchangeIdTokenForCustomToken(idToken) {
   try {
     const response = await fetch("/api/custom-token", {
@@ -52,42 +87,9 @@ async function initApp() {
   onlineStatus.textContent = "Connecting...";
   onlineStatus.style.color = "#fcd34d";
 
-  const urlParams = getUrlParams();
-
-  // CASE 1: URL me token hai (Android WebView se aaya)
-  if (urlParams.token) {
-    onlineStatus.textContent = "Authenticating...";
-
-    // ID token se custom token exchange karna
-    const customToken = await exchangeIdTokenForCustomToken(urlParams.token);
-
-    if (customToken) {
-      const user = await signInWithCustomToken(customToken);
-      if (user) {
-        currentUser = user;
-        verifiedUid = user.uid;
-        onlineStatus.textContent = "Online";
-        onlineStatus.style.color = "#86efac";
-
-        await ensureUserRegistered();
-        loadUserChat();
-        resetUnread(verifiedUid);
-
-        // URL se token hataana (security)
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        showLoading(false);
-        return;
-      }
-    }
-
-    // token exchange fail hua to fallback
-    console.error("Token auth failed, trying existing session...");
-  }
-
-  // CASE 2: Existing auth state check karna (direct browser access ya session)
+  // pehle check karna ki koi existing session to nahi hai
   onAuthChange(async (user) => {
-    if (user) {
+    if (user && !currentUser) {
       currentUser = user;
       verifiedUid = user.uid;
       onlineStatus.textContent = "Online";
@@ -96,12 +98,11 @@ async function initApp() {
       await ensureUserRegistered();
       loadUserChat();
       resetUnread(verifiedUid);
-
       showLoading(false);
-    } else {
-      // koi session nahi hai - error dikhana
-      onlineStatus.textContent = "Not connected";
-      onlineStatus.style.color = "#fca5a5";
+    } else if (!currentUser) {
+      // Android se token aane ka wait karna
+      onlineStatus.textContent = "Waiting for auth...";
+      onlineStatus.style.color = "#fcd34d";
       showLoading(false);
     }
   });
