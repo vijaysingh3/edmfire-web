@@ -20,7 +20,6 @@ const cancelPreview = document.getElementById("cancelPreview");
 const sendPreview = document.getElementById("sendPreview");
 
 // Android WebView se token receive karna
-// ye function Android app ka evaluateJavascript() call karega
 window.receiveAuthToken = async function(idToken) {
   if (isAuthenticating || currentUser) return;
   isAuthenticating = true;
@@ -29,7 +28,6 @@ window.receiveAuthToken = async function(idToken) {
   onlineStatus.style.color = "#fcd34d";
 
   try {
-    // ID token ko custom token me exchange karna
     const customToken = await exchangeIdTokenForCustomToken(idToken);
 
     if (customToken) {
@@ -47,7 +45,6 @@ window.receiveAuthToken = async function(idToken) {
       }
     }
 
-    // custom token se bhi fail hua
     console.error("Custom token sign in failed");
     onlineStatus.textContent = "Auth failed";
     onlineStatus.style.color = "#fca5a5";
@@ -87,7 +84,6 @@ async function initApp() {
   onlineStatus.textContent = "Connecting...";
   onlineStatus.style.color = "#fcd34d";
 
-  // pehle check karna ki koi existing session to nahi hai
   onAuthChange(async (user) => {
     if (user && !currentUser) {
       currentUser = user;
@@ -100,7 +96,6 @@ async function initApp() {
       resetUnread(verifiedUid);
       showLoading(false);
     } else if (!currentUser) {
-      // Android se token aane ka wait karna
       onlineStatus.textContent = "Waiting for auth...";
       onlineStatus.style.color = "#fcd34d";
       showLoading(false);
@@ -175,24 +170,23 @@ async function sendTextMessage() {
   await sendMessage(verifiedUid, "user", text, "");
 }
 
-// ✅ FIX: image send karna - file reference pehle save karna
+// image send karna
 async function sendImageMessage() {
   if (!selectedImageFile || !verifiedUid) return;
 
-  // ✅ FIX: closePreviewModal() selectedImageFile ko null kar deta hai,
+  // BUG FIX: closePreviewModal() selectedImageFile null kar deta hai
   // isliye pehle file ka reference save kar lena
-  const fileToUpload = selectedImageFile;
+  var fileToUpload = selectedImageFile;
   closePreviewModal();
 
-  const uploadingDiv = document.createElement("div");
+  var uploadingDiv = document.createElement("div");
   uploadingDiv.className = "message user";
   uploadingDiv.innerHTML = '<div class="msg-text">📷 Sending image...</div>';
   chatContainer.appendChild(uploadingDiv);
   scrollToBottom();
 
   try {
-    // ✅ FIX: saved file reference use karna, selectedImageFile nahi
-    const imageUrl = await uploadImage(verifiedUid, fileToUpload);
+    var imageUrl = await uploadImage(verifiedUid, fileToUpload);
 
     uploadingDiv.remove();
 
@@ -200,7 +194,7 @@ async function sendImageMessage() {
       await sendMessage(verifiedUid, "user", "", imageUrl);
     } else {
       console.error("Image upload failed - no URL returned");
-      const errorDiv = document.createElement("div");
+      var errorDiv = document.createElement("div");
       errorDiv.className = "message user";
       errorDiv.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed to send</div>';
       chatContainer.appendChild(errorDiv);
@@ -209,7 +203,7 @@ async function sendImageMessage() {
   } catch (error) {
     console.error("sendImageMessage error:", error);
     uploadingDiv.remove();
-    const errorDiv = document.createElement("div");
+    var errorDiv = document.createElement("div");
     errorDiv.className = "message user";
     errorDiv.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed to send</div>';
     chatContainer.appendChild(errorDiv);
@@ -218,12 +212,12 @@ async function sendImageMessage() {
 }
 
 // image select karna
-imgBtn.addEventListener("click", () => {
+imgBtn.addEventListener("click", function() {
   imageInput.click();
 });
 
-imageInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
+imageInput.addEventListener("change", function(e) {
+  var file = e.target.files[0];
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
@@ -232,8 +226,8 @@ imageInput.addEventListener("change", (e) => {
 
   selectedImageFile = file;
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
+  var reader = new FileReader();
+  reader.onload = function(event) {
     previewImage.src = event.target.result;
     imagePreviewModal.style.display = "flex";
   };
@@ -262,7 +256,7 @@ function openFullImage(src) {
 sendBtn.addEventListener("click", sendTextMessage);
 
 // enter key press
-msgInput.addEventListener("keypress", (e) => {
+msgInput.addEventListener("keypress", function(e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendTextMessage();
@@ -271,7 +265,7 @@ msgInput.addEventListener("keypress", (e) => {
 
 // auto scroll karna
 function scrollToBottom() {
-  requestAnimationFrame(() => {
+  requestAnimationFrame(function() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
   });
 }
@@ -279,40 +273,35 @@ function scrollToBottom() {
 // time format karna
 function formatTime(timestamp) {
   if (!timestamp) return "";
-  const date = new Date(timestamp);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
+  var date = new Date(timestamp);
+  var now = new Date();
+  var isToday = date.toDateString() === now.toDateString();
 
-  let hours = date.getHours();
-  let minutes = date.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
+  var hours = date.getHours();
+  var minutes = date.getMinutes();
+  var ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12 || 12;
   minutes = minutes < 10 ? "0" + minutes : minutes;
 
   if (isToday) {
     return hours + ":" + minutes + " " + ampm;
   } else {
-    const day = date.getDate();
-    const month = date.toLocaleString("en", { month: "short" });
+    var day = date.getDate();
+    var month = date.toLocaleString("en", { month: "short" });
     return day + " " + month + ", " + hours + ":" + minutes + " " + ampm;
   }
 }
 
-// ✅ FIX: HTML escape karna - map[m] tha map] likha hua tha
+// HTML escape karna
 function escapeHtml(text) {
-  const map = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  var div = document.createElement("div");
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
 }
 
 // loading dikhana
 function showLoading(show) {
-  let overlay = document.getElementById("loadingOverlay");
+  var overlay = document.getElementById("loadingOverlay");
   if (show) {
     if (!overlay) {
       overlay = document.createElement("div");

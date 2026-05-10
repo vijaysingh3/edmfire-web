@@ -1,52 +1,40 @@
 // Admin Panel Logic
 
-let currentAdmin = null;
-let selectedUserUid = null;
-let selectedImageFile = null;
-let usersData = {};
+var currentAdmin = null;
+var selectedUserUid = null;
+var selectedImageFile = null;
+var usersData = {};
 
 // DOM elements
-const userListEl = document.getElementById("userList");
-const messagesContainer = document.getElementById("messagesContainer");
-const chatHeaderName = document.getElementById("chatHeaderName");
-const chatHeaderStatus = document.getElementById("chatHeaderStatus");
-const bottomBar = document.getElementById("bottomBar");
-const msgInput = document.getElementById("msgInput");
-const sendBtn = document.getElementById("sendBtn");
-const imgBtn = document.getElementById("imgBtn");
-const imageInput = document.getElementById("imageInput");
-const searchInput = document.getElementById("searchInput");
-const mobileToggle = document.getElementById("mobileToggle");
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
-const imagePreviewModal = document.getElementById("imagePreviewModal");
-const previewImage = document.getElementById("previewImage");
-const previewOverlay = document.getElementById("previewOverlay");
-const cancelPreview = document.getElementById("cancelPreview");
-const sendPreview = document.getElementById("sendPreview");
+var userListEl = document.getElementById("userList");
+var messagesContainer = document.getElementById("messagesContainer");
+var chatHeaderName = document.getElementById("chatHeaderName");
+var chatHeaderStatus = document.getElementById("chatHeaderStatus");
+var bottomBar = document.getElementById("bottomBar");
+var msgInput = document.getElementById("msgInput");
+var sendBtn = document.getElementById("sendBtn");
+var imgBtn = document.getElementById("imgBtn");
+var imageInput = document.getElementById("imageInput");
+var searchInput = document.getElementById("searchInput");
+var mobileToggle = document.getElementById("mobileToggle");
+var sidebar = document.getElementById("sidebar");
+var sidebarOverlay = document.getElementById("sidebarOverlay");
+var imagePreviewModal = document.getElementById("imagePreviewModal");
+var previewImage = document.getElementById("previewImage");
+var previewOverlay = document.getElementById("previewOverlay");
+var cancelPreview = document.getElementById("cancelPreview");
+var sendPreview = document.getElementById("sendPreview");
 
 // app initialize karna
 async function initApp() {
   showLoading(true);
 
-  onAuthChange(async (user) => {
+  onAuthChange(async function(user) {
     if (user) {
-      // admin access check karna
       if (!checkAdminAccess(user)) {
         chatHeaderName.textContent = "Access Denied";
         chatHeaderStatus.textContent = "UID: " + user.uid + " is not authorized";
-        messagesContainer.innerHTML = `
-          <div class="no-chat-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-            <h3 style="color:#ef4444">Access Denied</h3>
-            <p>Your UID (${user.uid}) is not in the admin list</p>
-            <button onclick="signOutUser().then(()=>location.reload())" style="margin-top:12px;padding:10px 24px;border:none;border-radius:12px;background:#ef4444;color:white;cursor:pointer;font-family:'Poppins',sans-serif;">Sign Out & Try Again</button>
-          </div>
-        `;
+        messagesContainer.innerHTML = '<div class="no-chat-state"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><h3 style="color:#ef4444">Access Denied</h3><p>Your UID (' + user.uid + ') is not in the admin list</p><button onclick="signOutUser().then(function(){location.reload()})" style="margin-top:12px;padding:10px 24px;border:none;border-radius:12px;background:#ef4444;color:white;cursor:pointer;font-family:Poppins,sans-serif;">Sign Out & Try Again</button></div>';
         showLoading(false);
         return;
       }
@@ -57,7 +45,6 @@ async function initApp() {
       loadUsersList();
       showLoading(false);
     } else {
-      // admin login page dikhana
       showAdminLogin();
       showLoading(false);
     }
@@ -69,24 +56,8 @@ function showAdminLogin() {
   chatHeaderName.textContent = "Admin Login";
   chatHeaderStatus.textContent = "Sign in to manage support chats";
 
-  messagesContainer.innerHTML = `
-    <div class="no-chat-state">
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-      </svg>
-      <h3>Admin Access</h3>
-      <p>Sign in with your admin credentials</p>
-      <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px; width:280px;">
-        <input type="email" id="adminEmail" placeholder="Email address" style="height:48px; border:2px solid #e5e7eb; border-radius:12px; padding:0 16px; font-size:14px; outline:none; font-family:'Poppins',sans-serif; transition:border-color 0.2s;">
-        <input type="password" id="adminPassword" placeholder="Password" style="height:48px; border:2px solid #e5e7eb; border-radius:12px; padding:0 16px; font-size:14px; outline:none; font-family:'Poppins',sans-serif; transition:border-color 0.2s;">
-        <button id="adminLoginBtn" style="height:48px; border:none; border-radius:12px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; font-size:15px; font-weight:500; cursor:pointer; font-family:'Poppins',sans-serif; transition:opacity 0.2s;">Sign In</button>
-        <p id="loginError" style="color:#ef4444; font-size:12px; display:none; text-align:center;"></p>
-      </div>
-    </div>
-  `;
+  messagesContainer.innerHTML = '<div class="no-chat-state"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><h3>Admin Access</h3><p>Sign in with your admin credentials</p><div style="margin-top:20px;display:flex;flex-direction:column;gap:12px;width:280px;"><input type="email" id="adminEmail" placeholder="Email address" style="height:48px;border:2px solid #e5e7eb;border-radius:12px;padding:0 16px;font-size:14px;outline:none;font-family:Poppins,sans-serif;transition:border-color 0.2s;"><input type="password" id="adminPassword" placeholder="Password" style="height:48px;border:2px solid #e5e7eb;border-radius:12px;padding:0 16px;font-size:14px;outline:none;font-family:Poppins,sans-serif;transition:border-color 0.2s;"><button id="adminLoginBtn" style="height:48px;border:none;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-size:15px;font-weight:500;cursor:pointer;font-family:Poppins,sans-serif;transition:opacity 0.2s;">Sign In</button><p id="loginError" style="color:#ef4444;font-size:12px;display:none;text-align:center;"></p></div></div>';
 
-  // focus styles add karna
   document.getElementById("adminEmail").addEventListener("focus", function() {
     this.style.borderColor = "#6366f1";
   });
@@ -101,22 +72,21 @@ function showAdminLogin() {
   });
 
   document.getElementById("adminLoginBtn").addEventListener("click", handleAdminLogin);
-  document.getElementById("adminPassword").addEventListener("keypress", (e) => {
+  document.getElementById("adminPassword").addEventListener("keypress", function(e) {
     if (e.key === "Enter") handleAdminLogin();
   });
-  document.getElementById("adminEmail").addEventListener("keypress", (e) => {
+  document.getElementById("adminEmail").addEventListener("keypress", function(e) {
     if (e.key === "Enter") document.getElementById("adminPassword").focus();
   });
 }
 
 // admin login handle karna
 async function handleAdminLogin() {
-  const email = document.getElementById("adminEmail").value.trim();
-  const password = document.getElementById("adminPassword").value;
-  const loginError = document.getElementById("loginError");
-  const loginBtn = document.getElementById("adminLoginBtn");
+  var email = document.getElementById("adminEmail").value.trim();
+  var password = document.getElementById("adminPassword").value;
+  var loginError = document.getElementById("loginError");
+  var loginBtn = document.getElementById("adminLoginBtn");
 
-  // validation
   if (!email) {
     loginError.textContent = "Please enter your email";
     loginError.style.display = "block";
@@ -128,13 +98,12 @@ async function handleAdminLogin() {
     return;
   }
 
-  // loading state
   loginBtn.textContent = "Signing in...";
   loginBtn.style.opacity = "0.7";
   loginBtn.disabled = true;
   loginError.style.display = "none";
 
-  const result = await signInWithEmail(email, password);
+  var result = await signInWithEmail(email, password);
 
   if (result.user) {
     if (checkAdminAccess(result.user)) {
@@ -151,7 +120,6 @@ async function handleAdminLogin() {
       signOutUser();
     }
   } else {
-    // error message dikhana
     loginError.textContent = result.error || "Invalid email or password";
     loginError.style.display = "block";
     loginBtn.textContent = "Sign In";
@@ -162,7 +130,7 @@ async function handleAdminLogin() {
 
 // users list load karna
 function loadUsersList() {
-  loadUsers((data) => {
+  loadUsers(function(data) {
     usersData = data || {};
     renderUserList(usersData);
   });
@@ -172,49 +140,31 @@ function loadUsersList() {
 function renderUserList(data) {
   userListEl.innerHTML = "";
 
-  const uids = Object.keys(data);
+  var uids = Object.keys(data);
 
   if (uids.length === 0) {
-    userListEl.innerHTML = `
-      <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/>
-        </svg>
-        <p>No users yet</p>
-      </div>
-    `;
+    userListEl.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>No users yet</p></div>';
     return;
   }
 
-  // unread count ke hisaab se sort karna
-  const sortedUids = uids.sort((a, b) => {
-    const unreadA = data[a].unreadMsg || 0;
-    const unreadB = data[b].unreadMsg || 0;
+  var sortedUids = uids.sort(function(a, b) {
+    var unreadA = data[a].unreadMsg || 0;
+    var unreadB = data[b].unreadMsg || 0;
     return unreadB - unreadA;
   });
 
-  sortedUids.forEach((uid) => {
-    const user = data[uid];
-    const div = document.createElement("div");
+  sortedUids.forEach(function(uid) {
+    var user = data[uid];
+    var div = document.createElement("div");
     div.className = "user-item" + (uid === selectedUserUid ? " active" : "");
     div.setAttribute("data-uid", uid);
 
-    const initial = (user.username || "U").charAt(0).toUpperCase();
-    const unread = user.unreadMsg || 0;
+    var initial = (user.username || "U").charAt(0).toUpperCase();
+    var unread = user.unreadMsg || 0;
 
-    div.innerHTML = `
-      <div class="user-item-content">
-        <div class="user-avatar">${initial}</div>
-        <div class="user-info">
-          <div class="user-name">${escapeHtml(user.username || "Unknown")}</div>
-          <div class="last-msg">${unread > 0 ? unread + " new message" + (unread > 1 ? "s" : "") : "No new messages"}</div>
-        </div>
-      </div>
-      ${unread > 0 ? '<div class="badge">' + unread + "</div>" : ""}
-    `;
+    div.innerHTML = '<div class="user-item-content"><div class="user-avatar">' + initial + '</div><div class="user-info"><div class="user-name">' + escapeHtml(user.username || "Unknown") + '</div><div class="last-msg">' + (unread > 0 ? unread + " new message" + (unread > 1 ? "s" : "") : "No new messages") + '</div></div></div>' + (unread > 0 ? '<div class="badge">' + unread + "</div>" : "");
 
-    div.addEventListener("click", () => {
+    div.addEventListener("click", function() {
       selectUser(uid, user);
     });
 
@@ -230,7 +180,7 @@ function selectUser(uid, userData) {
   chatHeaderStatus.textContent = "UID: " + uid.substring(0, 8) + "...";
   bottomBar.style.display = "flex";
 
-  document.querySelectorAll(".user-item").forEach((el) => {
+  document.querySelectorAll(".user-item").forEach(function(el) {
     el.classList.remove("active");
     if (el.getAttribute("data-uid") === uid) {
       el.classList.add("active");
@@ -247,13 +197,13 @@ function loadSelectedUserChat(uid) {
   offMessagesListener(uid);
   messagesContainer.innerHTML = "";
 
-  loadMessages(uid, (data) => {
+  loadMessages(uid, function(data) {
     messagesContainer.innerHTML = "";
     if (data) {
-      const keys = Object.keys(data).sort((a, b) => {
+      var keys = Object.keys(data).sort(function(a, b) {
         return (data[a].timestamp || 0) - (data[b].timestamp || 0);
       });
-      keys.forEach((key) => {
+      keys.forEach(function(key) {
         appendMessage(data[key]);
       });
       scrollToBottom();
@@ -263,10 +213,10 @@ function loadSelectedUserChat(uid) {
 
 // message append karna
 function appendMessage(msg) {
-  const div = document.createElement("div");
+  var div = document.createElement("div");
   div.className = "message " + (msg.sender === "user" ? "user" : "admin");
 
-  let content = "";
+  var content = "";
 
   if (msg.text) {
     content += '<div class="msg-text">' + escapeHtml(msg.text) + "</div>";
@@ -284,7 +234,7 @@ function appendMessage(msg) {
 
 // text message send karna
 async function sendTextMessage() {
-  const text = msgInput.value.trim();
+  var text = msgInput.value.trim();
   if (!text || !selectedUserUid) return;
 
   msgInput.value = "";
@@ -295,37 +245,56 @@ async function sendTextMessage() {
 async function sendImageMessage() {
   if (!selectedImageFile || !selectedUserUid) return;
 
+  // BUG FIX: closePreviewModal() selectedImageFile null kar deta hai
+  // isliye pehle file ka reference save kar lena
+  var fileToUpload = selectedImageFile;
   closePreviewModal();
 
-  const uploadingDiv = document.createElement("div");
+  var uploadingDiv = document.createElement("div");
   uploadingDiv.className = "message admin";
   uploadingDiv.innerHTML = '<div class="msg-text">📷 Sending image...</div>';
   messagesContainer.appendChild(uploadingDiv);
   scrollToBottom();
 
-  const imageUrl = await uploadImage(selectedUserUid, selectedImageFile);
-  selectedImageFile = null;
+  try {
+    var imageUrl = await uploadImage(selectedUserUid, fileToUpload);
 
-  uploadingDiv.remove();
+    uploadingDiv.remove();
 
-  if (imageUrl) {
-    await sendMessage(selectedUserUid, "admin", "", imageUrl);
+    if (imageUrl) {
+      await sendMessage(selectedUserUid, "admin", "", imageUrl);
+    } else {
+      console.error("Image upload failed - no URL returned");
+      var errorDiv = document.createElement("div");
+      errorDiv.className = "message admin";
+      errorDiv.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed to send</div>';
+      messagesContainer.appendChild(errorDiv);
+      scrollToBottom();
+    }
+  } catch (error) {
+    console.error("sendImageMessage error:", error);
+    uploadingDiv.remove();
+    var errorDiv = document.createElement("div");
+    errorDiv.className = "message admin";
+    errorDiv.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed to send</div>';
+    messagesContainer.appendChild(errorDiv);
+    scrollToBottom();
   }
 }
 
 // image select karna
-imgBtn.addEventListener("click", () => {
+imgBtn.addEventListener("click", function() {
   imageInput.click();
 });
 
-imageInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
+imageInput.addEventListener("change", function(e) {
+  var file = e.target.files[0];
   if (!file || !file.type.startsWith("image/")) return;
 
   selectedImageFile = file;
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
+  var reader = new FileReader();
+  reader.onload = function(event) {
     previewImage.src = event.target.result;
     imagePreviewModal.style.display = "flex";
   };
@@ -353,7 +322,7 @@ function openFullImage(src) {
 sendBtn.addEventListener("click", sendTextMessage);
 
 // enter key press
-msgInput.addEventListener("keypress", (e) => {
+msgInput.addEventListener("keypress", function(e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendTextMessage();
@@ -361,16 +330,16 @@ msgInput.addEventListener("keypress", (e) => {
 });
 
 // search functionality
-searchInput.addEventListener("input", (e) => {
-  const query = e.target.value.toLowerCase().trim();
+searchInput.addEventListener("input", function(e) {
+  var query = e.target.value.toLowerCase().trim();
   if (!query) {
     renderUserList(usersData);
     return;
   }
 
-  const filtered = {};
-  Object.keys(usersData).forEach((uid) => {
-    const user = usersData[uid];
+  var filtered = {};
+  Object.keys(usersData).forEach(function(uid) {
+    var user = usersData[uid];
     if ((user.username || "").toLowerCase().includes(query)) {
       filtered[uid] = user;
     }
@@ -379,7 +348,7 @@ searchInput.addEventListener("input", (e) => {
 });
 
 // mobile sidebar toggle
-mobileToggle.addEventListener("click", () => {
+mobileToggle.addEventListener("click", function() {
   sidebar.classList.toggle("open");
   sidebarOverlay.classList.toggle("active");
 });
@@ -393,7 +362,7 @@ function closeSidebar() {
 
 // auto scroll
 function scrollToBottom() {
-  requestAnimationFrame(() => {
+  requestAnimationFrame(function() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   });
 }
@@ -401,40 +370,35 @@ function scrollToBottom() {
 // time format karna
 function formatTime(timestamp) {
   if (!timestamp) return "";
-  const date = new Date(timestamp);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
+  var date = new Date(timestamp);
+  var now = new Date();
+  var isToday = date.toDateString() === now.toDateString();
 
-  let hours = date.getHours();
-  let minutes = date.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
+  var hours = date.getHours();
+  var minutes = date.getMinutes();
+  var ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12 || 12;
   minutes = minutes < 10 ? "0" + minutes : minutes;
 
   if (isToday) {
     return hours + ":" + minutes + " " + ampm;
   } else {
-    const day = date.getDate();
-    const month = date.toLocaleString("en", { month: "short" });
+    var day = date.getDate();
+    var month = date.toLocaleString("en", { month: "short" });
     return day + " " + month + ", " + hours + ":" + minutes + " " + ampm;
   }
 }
 
-// HTML escape
+// HTML escape karna - safe method
 function escapeHtml(text) {
-  const map = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  var div = document.createElement("div");
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
 }
 
 // loading dikhana
 function showLoading(show) {
-  let overlay = document.getElementById("loadingOverlay");
+  var overlay = document.getElementById("loadingOverlay");
   if (show) {
     if (!overlay) {
       overlay = document.createElement("div");
