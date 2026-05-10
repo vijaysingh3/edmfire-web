@@ -1,23 +1,23 @@
 // User Chat Page Logic
 
-let currentUser = null;
-let verifiedUid = null;
-let selectedImageFile = null;
-let isAuthenticating = false;
+var currentUser = null;
+var verifiedUid = null;
+var selectedImageFile = null;
+var isAuthenticating = false;
 
 // DOM elements
-const chatContainer = document.getElementById("chatContainer");
-const msgInput = document.getElementById("msgInput");
-const sendBtn = document.getElementById("sendBtn");
-const imgBtn = document.getElementById("imgBtn");
-const imageInput = document.getElementById("imageInput");
-const onlineStatus = document.getElementById("onlineStatus");
-const typingIndicator = document.getElementById("typingIndicator");
-const imagePreviewModal = document.getElementById("imagePreviewModal");
-const previewImage = document.getElementById("previewImage");
-const previewOverlay = document.getElementById("previewOverlay");
-const cancelPreview = document.getElementById("cancelPreview");
-const sendPreview = document.getElementById("sendPreview");
+var chatContainer = document.getElementById("chatContainer");
+var msgInput = document.getElementById("msgInput");
+var sendBtn = document.getElementById("sendBtn");
+var imgBtn = document.getElementById("imgBtn");
+var imageInput = document.getElementById("imageInput");
+var onlineStatus = document.getElementById("onlineStatus");
+var typingIndicator = document.getElementById("typingIndicator");
+var imagePreviewModal = document.getElementById("imagePreviewModal");
+var previewImage = document.getElementById("previewImage");
+var previewOverlay = document.getElementById("previewOverlay");
+var cancelPreview = document.getElementById("cancelPreview");
+var sendPreview = document.getElementById("sendPreview");
 
 // Android WebView se token receive karna
 window.receiveAuthToken = async function(idToken) {
@@ -28,13 +28,16 @@ window.receiveAuthToken = async function(idToken) {
   onlineStatus.style.color = "#fcd34d";
 
   try {
-    const customToken = await exchangeIdTokenForCustomToken(idToken);
+    // ID token ko custom token me exchange karna
+    var customToken = await exchangeIdTokenForCustomToken(idToken);
 
     if (customToken) {
-      const user = await signInWithCustomToken(customToken);
-      if (user) {
-        currentUser = user;
-        verifiedUid = user.uid;
+      // BUG FIX: signInWithCustomToken returns { user: FirebaseUser, error: null }
+      // isliye result.user use karna, result.uid nahi
+      var result = await signInWithCustomToken(customToken);
+      if (result && result.user) {
+        currentUser = result.user;
+        verifiedUid = result.user.uid;
         onlineStatus.textContent = "Online";
         onlineStatus.style.color = "#86efac";
 
@@ -45,6 +48,7 @@ window.receiveAuthToken = async function(idToken) {
       }
     }
 
+    // custom token se bhi fail hua
     console.error("Custom token sign in failed");
     onlineStatus.textContent = "Auth failed";
     onlineStatus.style.color = "#fca5a5";
@@ -61,12 +65,12 @@ window.receiveAuthToken = async function(idToken) {
 // ID token ko custom token me exchange karna API se
 async function exchangeIdTokenForCustomToken(idToken) {
   try {
-    const response = await fetch("/api/custom-token", {
+    var response = await fetch("/api/custom-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken: idToken })
     });
-    const data = await response.json();
+    var data = await response.json();
     if (data.customToken) {
       return data.customToken;
     }
@@ -84,8 +88,10 @@ async function initApp() {
   onlineStatus.textContent = "Connecting...";
   onlineStatus.style.color = "#fcd34d";
 
-  onAuthChange(async (user) => {
+  // pehle check karna ki koi existing session to nahi hai
+  onAuthChange(async function(user) {
     if (user && !currentUser) {
+      // ye direct Firebase user hai (onAuthStateChanged se)
       currentUser = user;
       verifiedUid = user.uid;
       onlineStatus.textContent = "Online";
@@ -96,6 +102,7 @@ async function initApp() {
       resetUnread(verifiedUid);
       showLoading(false);
     } else if (!currentUser) {
+      // Android se token aane ka wait karna
       onlineStatus.textContent = "Waiting for auth...";
       onlineStatus.style.color = "#fcd34d";
       showLoading(false);
@@ -105,10 +112,14 @@ async function initApp() {
 
 // user register check karna
 async function ensureUserRegistered() {
+  if (!verifiedUid) {
+    console.error("ensureUserRegistered: verifiedUid is null");
+    return;
+  }
   try {
-    const data = await loadUsersOnce();
+    var data = await loadUsersOnce();
     if (!data || !data[verifiedUid]) {
-      const username = "User_" + verifiedUid.substring(0, 6);
+      var username = "User_" + verifiedUid.substring(0, 6);
       await registerUser(verifiedUid, username);
     }
   } catch (error) {
@@ -118,15 +129,16 @@ async function ensureUserRegistered() {
 
 // user chat load karna
 function loadUserChat() {
-  const uid = verifiedUid;
+  if (!verifiedUid) return;
+  var uid = verifiedUid;
 
-  loadMessages(uid, (data) => {
+  loadMessages(uid, function(data) {
     clearChat();
     if (data) {
-      const keys = Object.keys(data).sort((a, b) => {
+      var keys = Object.keys(data).sort(function(a, b) {
         return (data[a].timestamp || 0) - (data[b].timestamp || 0);
       });
-      keys.forEach((key) => {
+      keys.forEach(function(key) {
         appendMessage(data[key]);
       });
       scrollToBottom();
@@ -136,16 +148,16 @@ function loadUserChat() {
 
 // chat clear karna
 function clearChat() {
-  const messages = chatContainer.querySelectorAll(".message, .date-separator");
-  messages.forEach((el) => el.remove());
+  var messages = chatContainer.querySelectorAll(".message, .date-separator");
+  messages.forEach(function(el) { el.remove(); });
 }
 
 // message append karna chat me
 function appendMessage(msg) {
-  const div = document.createElement("div");
+  var div = document.createElement("div");
   div.className = "message " + (msg.sender === "user" ? "user" : "admin");
 
-  let content = "";
+  var content = "";
 
   if (msg.text) {
     content += '<div class="msg-text">' + escapeHtml(msg.text) + "</div>";
@@ -163,7 +175,7 @@ function appendMessage(msg) {
 
 // message send karna
 async function sendTextMessage() {
-  const text = msgInput.value.trim();
+  var text = msgInput.value.trim();
   if (!text || !verifiedUid) return;
 
   msgInput.value = "";
@@ -292,7 +304,7 @@ function formatTime(timestamp) {
   }
 }
 
-// HTML escape karna
+// HTML escape karna - safe DOM method
 function escapeHtml(text) {
   var div = document.createElement("div");
   div.appendChild(document.createTextNode(text));
