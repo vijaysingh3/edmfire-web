@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDMFire - Help Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+    }
+    .container {
+      text-align: center;
+      color: white;
+      padding: 40px;
+    }
+    .logo {
+      font-size: 42px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+    .subtitle {
+      font-size: 16px;
+      opacity: 0.85;
+      margin-bottom: 40px;
+    }
+    .links {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .link-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      padding: 28px 36px;
+      text-decoration: none;
+      color: white;
+      transition: all 0.3s;
+      min-width: 200px;
+    }
+    .link-card:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+    .link-card h2 {
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+    .link-card p {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">EDMFire</div>
+    <div class="subtitle">Help Center &amp; Support System</div>
+    <div class="links">
+      <a href="/user/" class="link-card">
+        <h2>User Chat</h2>
+        <p>Open support chat</p>
+      </a>
+      <a href="/admin/" class="link-card">
+        <h2>Admin Panel</h2>
+        <p>Manage support chats</p>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
