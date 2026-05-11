@@ -14,9 +14,11 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  /* WebView me safe-area-inset kaam nahi karta, isliye fixed padding use karna */
+  /* WebView me 100vh navigation bar ko include karta hai, JS se actual height set hogi */
   height: 100vh;
   height: 100dvh;
+  /* JS inject karega --app-height variable */
+  height: var(--app-height, 100dvh);
 }
 
 /* Header */
@@ -143,11 +145,9 @@ body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #4b5563;
 }
 
-/* Bottom Bar - safe area ke liye extra bottom padding */
+/* Bottom Bar */
 .bottom-bar {
-  padding: 8px 10px;
-  /* WebView me phone ke navigation bar ke liye bottom padding */
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 10px 8px 10px;
   background: white; display: flex;
   align-items: center; gap: 6px; border-top: 1px solid #e5e7eb;
   flex-shrink: 0; z-index: 10;
