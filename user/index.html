@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Help Center</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,6 +32,13 @@
     <div class="message admin">
       <div class="msg-text">Hello 👋<br>How can we help you?</div>
       <div class="msg-time">Now</div>
+    </div>
+  </div>
+
+  <!-- Typing indicator -->
+  <div class="typing-indicator" id="typingIndicator" style="display:none;">
+    <div class="typing-dots">
+      <span></span><span></span><span></span>
     </div>
   </div>
 
@@ -97,7 +104,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
-  <!-- Firebase Config - API se load hoga -->
+  <!-- Firebase Config - API se load hoga (env vars se) -->
   <script src="/api/firebase-config"></script>
 
   <!-- Firebase Utils -->
