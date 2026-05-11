@@ -14,14 +14,12 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
+  /* 100vh nahi use karna - WebView me galat hota hai */
+  /* 100% parent (html) ka respect karega jo WebView ke actual size me hoga */
 }
 
-/* Header - fixed top pe */
+/* Header */
 .header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
   height: 60px;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
@@ -30,6 +28,7 @@ body {
   padding: 0 14px;
   box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3);
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .header-content { display: flex; align-items: center; gap: 12px; width: 100%; }
@@ -43,13 +42,9 @@ body {
 .header-title { font-size: 15px; font-weight: 600; }
 .header-status { font-size: 11px; opacity: 0.85; }
 
-/* Chat Container - header aur bottom bar ke beech me */
+/* Chat Container */
 .chat-container {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  right: 0;
-  bottom: 58px;
+  flex: 1;
   overflow-y: auto;
   padding: 12px 10px;
   display: flex;
@@ -57,6 +52,8 @@ body {
   gap: 6px;
   background: #f0f2f5;
   -webkit-overflow-scrolling: touch;
+  /* chat area ke andar hi scroll hoga */
+  min-height: 0;
 }
 
 .chat-container::-webkit-scrollbar { width: 3px; }
@@ -128,15 +125,11 @@ body {
   margin-top: 4px; cursor: pointer; object-fit: cover; display: block;
 }
 
-/* Reply Bar - fixed bottom bar ke upar */
+/* Reply Bar */
 .reply-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 58px;
   display: flex; align-items: center; padding: 8px 14px;
   background: #f1f3f6; border-top: 1px solid #e5e7eb;
-  z-index: 10;
+  flex-shrink: 0;
 }
 .reply-bar::before {
   content: ''; width: 3px; height: 32px; background: #6366f1;
@@ -151,16 +144,12 @@ body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #4b5563;
 }
 
-/* Bottom Bar - fixed bottom pe */
+/* Bottom Bar */
 .bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   padding: 8px 10px;
   background: white; display: flex;
   align-items: center; gap: 6px; border-top: 1px solid #e5e7eb;
-  z-index: 10;
+  flex-shrink: 0; z-index: 10;
 }
 
 .bottom-bar input[type="text"] {
