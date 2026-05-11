@@ -1,5 +1,44 @@
 // User Chat Page Logic
 
+// WebView me 100vh navigation bar include karta hai
+// visualViewport.height actual visible area deta hai (nav bar exclude)
+// ye fix phone pe send button hide hone ka problem solve karega
+// Fallback: window.innerHeight (visualViewport nahi mila toh)
+function setAppHeight() {
+  var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  document.documentElement.style.setProperty("--app-height", h + "px");
+
+  // FIX: bottom-bar aur reply-bar ko keyboard ke upar dynamically adjust karo
+  // Android WebView me keyboard khulne par visualViewport shift hota hai
+  var bottomBar = document.querySelector('.bottom-bar');
+  var replyBar = document.getElementById('replyBar');
+
+  if (window.visualViewport) {
+    // offsetTop = kitna viewport upar shift hua hai (keyboard ki wajah se)
+    var offsetFromBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+    var safeOffset = Math.max(0, offsetFromBottom);
+
+    if (bottomBar) {
+      bottomBar.style.bottom = safeOffset + "px";
+    }
+    // reply-bar bhi bottom-bar ke upar rahe
+    if (replyBar && replyBar.style.display !== "none") {
+      replyBar.style.bottom = (safeOffset + 58) + "px";
+    }
+  }
+}
+
+setAppHeight();
+
+// visualViewport resize event - keyboard open/close aur nav bar changes ke liye
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", setAppHeight);
+  // scroll event bhi handle karo - kuch devices me scroll hota hai resize ke bajaye
+  window.visualViewport.addEventListener("scroll", setAppHeight);
+} else {
+  window.addEventListener("resize", setAppHeight);
+}
+
 var currentUser = null;
 var verifiedUid = null;
 var selectedImageFile = null;
@@ -234,7 +273,11 @@ if (ctxReply) {
     replyingTo = contextMsgKey;
     if (replyName) replyName.textContent = contextMsgData.sender === "user" ? "You" : "Admin";
     if (replyText) replyText.textContent = contextMsgData.text || "📷 Image";
-    if (replyBar) replyBar.style.display = "flex";
+    if (replyBar) {
+      replyBar.style.display = "flex";
+      // FIX: reply bar position update karo current keyboard offset ke saath
+      setAppHeight();
+    }
     if (msgInput) msgInput.focus();
     hideContextMenu();
   });
