@@ -1,13 +1,12 @@
 /* User Chat Page Styles - Phone Friendly */
 
 :root {
-  /* Default fallback - JS override karega actual visible height se */
   --app-height: 100vh;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
 
-html {
+html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -17,13 +16,9 @@ html {
 }
 
 body {
-  width: 100%;
-  /* 100vh fallback + JS --app-height override (nav bar exclude karega) */
-  height: var(--app-height);
-  overflow: hidden;
-  background: #f0f2f5;
   display: flex;
   flex-direction: column;
+  height: var(--app-height);
 }
 
 /* Header */
@@ -153,8 +148,7 @@ body {
 
 /* Bottom Bar */
 .bottom-bar {
-  padding: 8px 10px;
-  background: white; display: flex;
+  padding: 8px 10px; background: white; display: flex;
   align-items: center; gap: 6px; border-top: 1px solid #e5e7eb;
   flex-shrink: 0; z-index: 10;
 }

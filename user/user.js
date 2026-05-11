@@ -3,13 +3,11 @@
 // WebView me 100vh navigation bar include karta hai
 // visualViewport.height actual visible area deta hai (nav bar exclude)
 // ye fix phone pe send button hide hone ka problem solve karega
-// Fallback: window.innerHeight (visualViewport nahi mila toh)
 function setAppHeight() {
   var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
   document.documentElement.style.setProperty("--app-height", h + "px");
 }
 setAppHeight();
-// visualViewport resize event - keyboard open/close aur nav bar changes ke liye
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", setAppHeight);
 } else {
@@ -26,7 +24,7 @@ var contextMsgData = null;
 var allMessagesData = {};
 var pendingFcmToken = null;
 
-// DOM elements - null check ke saath
+// DOM elements
 var chatContainer = document.getElementById("chatContainer");
 var msgInput = document.getElementById("msgInput");
 var sendBtn = document.getElementById("sendBtn");
@@ -226,7 +224,7 @@ function appendMessage(msgKey, msg) {
   div.addEventListener("touchmove", function() { clearTimeout(pressTimer); });
 }
 
-// context menu - null safe
+// context menu
 function showContextMenu(e, msgKey, msg) {
   contextMsgKey = msgKey; contextMsgData = msg;
   if (contextMenu) {
@@ -243,7 +241,6 @@ function hideContextMenu() {
   contextMsgKey = null; contextMsgData = null;
 }
 
-// context menu listeners - null check ke saath, crash nahi hoga
 if (ctxReply) {
   ctxReply.addEventListener("click", function() {
     if (!contextMsgData) return;
@@ -288,7 +285,6 @@ if (replyClose) {
 
 // message send karna
 async function sendTextMessage() {
-  if (!msgInput) return;
   var text = msgInput.value.trim();
   console.log("sendTextMessage called, text:", text, "uid:", verifiedUid);
 
@@ -311,7 +307,6 @@ async function sendTextMessage() {
 // image send karna
 async function sendImageMessage() {
   if (!selectedImageFile || !verifiedUid) return;
-  if (!chatContainer) return;
 
   var fileToUpload = selectedImageFile;
   var replyRef = replyingTo;
@@ -350,9 +345,7 @@ function showErrorBubble() {
 }
 
 // image select karna
-if (imgBtn) {
-  imgBtn.addEventListener("click", function() { if (imageInput) imageInput.click(); });
-}
+if (imgBtn) { imgBtn.addEventListener("click", function() { if (imageInput) imageInput.click(); }); }
 
 if (imageInput) {
   imageInput.addEventListener("change", function(e) {
