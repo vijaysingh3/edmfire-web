@@ -1,119 +1,423 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Help Center</title>
+// User Chat Page Logic
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="user.css">
-</head>
+// WebView me 100vh navigation bar include karta hai
+// window.innerHeight actual visible height deta hai (nav bar exclude)
+// ye fix phone pe send button hide hone ka problem solve karega
+function setAppHeight() {
+  document.documentElement.style.height = window.innerHeight + "px";
+  document.body.style.height = window.innerHeight + "px";
+}
+setAppHeight();
+window.addEventListener("resize", setAppHeight);
 
-<body>
+var currentUser = null;
+var verifiedUid = null;
+var selectedImageFile = null;
+var isAuthenticating = false;
+var replyingTo = null;
+var contextMsgKey = null;
+var contextMsgData = null;
+var allMessagesData = {};
+var pendingFcmToken = null;
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-content">
-      <div class="header-avatar">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-      </div>
-      <div class="header-info">
-        <div class="header-title">Help Center</div>
-        <div class="header-status" id="onlineStatus">Online</div>
-      </div>
-    </div>
-  </div>
+// DOM elements - null check ke saath
+var chatContainer = document.getElementById("chatContainer");
+var msgInput = document.getElementById("msgInput");
+var sendBtn = document.getElementById("sendBtn");
+var imgBtn = document.getElementById("imgBtn");
+var imageInput = document.getElementById("imageInput");
+var onlineStatus = document.getElementById("onlineStatus");
+var imagePreviewModal = document.getElementById("imagePreviewModal");
+var previewImage = document.getElementById("previewImage");
+var previewOverlay = document.getElementById("previewOverlay");
+var cancelPreview = document.getElementById("cancelPreview");
+var sendPreview = document.getElementById("sendPreview");
+var replyBar = document.getElementById("replyBar");
+var replyName = document.getElementById("replyName");
+var replyText = document.getElementById("replyText");
+var replyClose = document.getElementById("replyClose");
+var contextMenu = document.getElementById("contextMenu");
+var ctxReply = document.getElementById("ctxReply");
+var ctxCopy = document.getElementById("ctxCopy");
+var ctxDelete = document.getElementById("ctxDelete");
 
-  <!-- Chat Container -->
-  <div class="chat-container" id="chatContainer">
-    <div class="message admin">
-      <div class="msg-text">Hello 👋<br>How can we help you?</div>
-      <div class="msg-time">Now</div>
-    </div>
-  </div>
+// Android WebView se auth token receive karna
+window.receiveAuthToken = async function(idToken) {
+  if (isAuthenticating || currentUser) return;
+  isAuthenticating = true;
+  if (onlineStatus) { onlineStatus.textContent = "Authenticating..."; onlineStatus.style.color = "#fcd34d"; }
 
-  <!-- Typing indicator -->
-  <div class="typing-indicator" id="typingIndicator" style="display:none;">
-    <div class="typing-dots">
-      <span></span><span></span><span></span>
-    </div>
-  </div>
+  try {
+    var customToken = await exchangeIdTokenForCustomToken(idToken);
+    if (customToken) {
+      var result = await signInWithCustomToken(customToken);
+      if (result && result.user) {
+        currentUser = result.user;
+        verifiedUid = result.user.uid;
+        console.log("Auth success, uid:", verifiedUid);
+        if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
+        await ensureUserRegistered();
+        loadUserChat();
+        resetUnread(verifiedUid);
+        markMessagesAsSeen(verifiedUid, "user");
+        if (pendingFcmToken) {
+          saveFcmToken(verifiedUid, pendingFcmToken);
+          pendingFcmToken = null;
+        }
+        return;
+      }
+    }
+    console.error("Custom token sign in failed");
+    if (onlineStatus) { onlineStatus.textContent = "Auth failed"; onlineStatus.style.color = "#fca5a5"; }
+  } catch (error) {
+    console.error("receiveAuthToken error:", error);
+    if (onlineStatus) { onlineStatus.textContent = "Auth error"; onlineStatus.style.color = "#fca5a5"; }
+  } finally {
+    isAuthenticating = false;
+    showLoading(false);
+  }
+};
 
-  <!-- Reply Bar -->
-  <div class="reply-bar" id="replyBar" style="display:none;">
-    <div class="reply-content">
-      <span class="reply-name" id="replyName"></span>
-      <span class="reply-text" id="replyText"></span>
-    </div>
-    <button class="reply-close" id="replyClose">&times;</button>
-  </div>
+// Android se FCM token receive karna
+window.receiveFcmToken = function(token) {
+  if (!token) return;
+  console.log("FCM token received:", token.substring(0, 20) + "...");
+  if (verifiedUid) {
+    saveFcmToken(verifiedUid, token);
+  } else {
+    pendingFcmToken = token;
+  }
+};
 
-  <!-- Bottom Input Bar -->
-  <div class="bottom-bar">
-    <input type="file" id="imageInput" accept="image/*" hidden>
-    <button class="icon-btn" id="imgBtn" title="Send Image">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-        <circle cx="8.5" cy="8.5" r="1.5"/>
-        <polyline points="21 15 16 10 5 21"/>
-      </svg>
-    </button>
-    <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off">
-    <button class="icon-btn send-btn" id="sendBtn" title="Send">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"/>
-        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
-    </button>
-  </div>
+// ID token ko custom token me exchange karna
+async function exchangeIdTokenForCustomToken(idToken) {
+  try {
+    var response = await fetch("/api/custom-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: idToken })
+    });
+    var data = await response.json();
+    if (data.customToken) return data.customToken;
+    console.error("Token exchange failed:", data.error);
+    return null;
+  } catch (error) {
+    console.error("Token exchange API error:", error);
+    return null;
+  }
+}
 
-  <!-- Image Preview Modal -->
-  <div class="image-preview-modal" id="imagePreviewModal" style="display:none;">
-    <div class="preview-overlay" id="previewOverlay"></div>
-    <div class="preview-content">
-      <img id="previewImage" src="" alt="Preview">
-      <div class="preview-actions">
-        <button class="preview-btn cancel-btn" id="cancelPreview">Cancel</button>
-        <button class="preview-btn send-preview-btn" id="sendPreview">Send</button>
-      </div>
-    </div>
-  </div>
+// app initialize karna
+async function initApp() {
+  showLoading(true);
+  if (onlineStatus) { onlineStatus.textContent = "Connecting..."; onlineStatus.style.color = "#fcd34d"; }
 
-  <!-- Context Menu -->
-  <div class="context-menu" id="contextMenu" style="display:none;">
-    <div class="context-menu-item" id="ctxReply">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-      Reply
-    </div>
-    <div class="context-menu-item" id="ctxCopy">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copy
-    </div>
-    <div class="context-menu-item ctx-delete" id="ctxDelete">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-      Delete
-    </div>
-  </div>
+  onAuthChange(function(user) {
+    if (user && !currentUser) {
+      currentUser = user;
+      verifiedUid = user.uid;
+      console.log("onAuthChange: uid:", verifiedUid);
+      if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
+      ensureUserRegistered().then(function() {
+        loadUserChat();
+        resetUnread(verifiedUid);
+        markMessagesAsSeen(verifiedUid, "user");
+        if (pendingFcmToken) {
+          saveFcmToken(verifiedUid, pendingFcmToken);
+          pendingFcmToken = null;
+        }
+      });
+      showLoading(false);
+    } else if (!currentUser) {
+      if (onlineStatus) { onlineStatus.textContent = "Waiting for auth..."; onlineStatus.style.color = "#fcd34d"; }
+      showLoading(false);
+    }
+  });
+}
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+// user register check karna
+async function ensureUserRegistered() {
+  if (!verifiedUid) return;
+  try {
+    var data = await loadUsersOnce();
+    if (!data || !data[verifiedUid]) {
+      await registerUser(verifiedUid, "User_" + verifiedUid.substring(0, 6));
+    }
+  } catch (error) {
+    console.error("User register check error:", error);
+  }
+}
 
-  <!-- Firebase Config - API se load hoga (env vars se) -->
-  <script src="/api/firebase-config"></script>
+// user chat load karna
+function loadUserChat() {
+  if (!verifiedUid) return;
+  loadMessages(verifiedUid, function(data) {
+    allMessagesData = data || {};
+    clearChat();
+    if (data) {
+      var keys = Object.keys(data).sort(function(a, b) {
+        return (data[a].timestamp || 0) - (data[b].timestamp || 0);
+      });
+      for (var i = 0; i < keys.length; i++) {
+        appendMessage(keys[i], data[keys[i]]);
+      }
+      scrollToBottom();
+    }
+    markMessagesAsSeen(verifiedUid, "user");
+  });
+}
 
-  <!-- Firebase Utils -->
-  <script src="../firebase/auth.js"></script>
-  <script src="../firebase/database.js"></script>
-  <script src="../firebase/storage.js"></script>
+// chat clear karna
+function clearChat() {
+  if (!chatContainer) return;
+  var msgs = chatContainer.querySelectorAll(".message, .date-separator");
+  for (var i = 0; i < msgs.length; i++) msgs[i].remove();
+}
 
-  <!-- User Chat Logic -->
-  <script src="user.js"></script>
+// message append karna
+function appendMessage(msgKey, msg) {
+  if (!chatContainer) return;
+  var div = document.createElement("div");
+  div.className = "message " + (msg.sender === "user" ? "user" : "admin");
+  div.setAttribute("data-key", msgKey);
 
-</body>
-</html>
+  var content = "";
+
+  if (msg.replyTo && allMessagesData[msg.replyTo]) {
+    var orig = allMessagesData[msg.replyTo];
+    content += '<div class="msg-reply">' + escapeHtml((orig.text || "📷 Image").substring(0, 60)) + '</div>';
+  }
+
+  if (msg.text) {
+    content += '<div class="msg-text">' + escapeHtml(msg.text) + "</div>";
+  }
+  if (msg.imageUrl) {
+    content += '<img src="' + msg.imageUrl + '" alt="Image" loading="lazy" onclick="openFullImage(this.src)">';
+  }
+
+  var ticks = "";
+  if (msg.sender === "user") {
+    ticks = msg.seen ? '<span class="msg-ticks read">✓✓</span>' : '<span class="msg-ticks sent">✓</span>';
+  }
+
+  content += '<div class="msg-time">' + formatTime(msg.timestamp) + " " + ticks + "</div>";
+  div.innerHTML = content;
+  chatContainer.appendChild(div);
+
+  div.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+    showContextMenu(e, msgKey, msg);
+  });
+
+  var pressTimer = null;
+  div.addEventListener("touchstart", function() {
+    pressTimer = setTimeout(function() {
+      var touch = { clientX: 50, clientY: 50 };
+      showContextMenu(touch, msgKey, msg);
+    }, 500);
+  }, { passive: true });
+  div.addEventListener("touchend", function() { clearTimeout(pressTimer); });
+  div.addEventListener("touchmove", function() { clearTimeout(pressTimer); });
+}
+
+// context menu - null safe
+function showContextMenu(e, msgKey, msg) {
+  contextMsgKey = msgKey; contextMsgData = msg;
+  if (contextMenu) {
+    contextMenu.style.display = "block";
+    var x = e.clientX || 50; var y = e.clientY || 50;
+    if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
+    if (y + 130 > window.innerHeight) y = window.innerHeight - 140;
+    contextMenu.style.left = x + "px"; contextMenu.style.top = y + "px";
+  }
+}
+
+function hideContextMenu() {
+  if (contextMenu) { contextMenu.style.display = "none"; }
+  contextMsgKey = null; contextMsgData = null;
+}
+
+// context menu listeners - null check ke saath, crash nahi hoga
+if (ctxReply) {
+  ctxReply.addEventListener("click", function() {
+    if (!contextMsgData) return;
+    replyingTo = contextMsgKey;
+    if (replyName) replyName.textContent = contextMsgData.sender === "user" ? "You" : "Admin";
+    if (replyText) replyText.textContent = contextMsgData.text || "📷 Image";
+    if (replyBar) replyBar.style.display = "flex";
+    if (msgInput) msgInput.focus();
+    hideContextMenu();
+  });
+}
+
+if (ctxCopy) {
+  ctxCopy.addEventListener("click", function() {
+    if (!contextMsgData || !contextMsgData.text) return;
+    if (navigator.clipboard) navigator.clipboard.writeText(contextMsgData.text);
+    else {
+      var ta = document.createElement("textarea"); ta.value = contextMsgData.text;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    hideContextMenu();
+  });
+}
+
+if (ctxDelete) {
+  ctxDelete.addEventListener("click", function() {
+    if (!contextMsgKey || !verifiedUid) return;
+    deleteMessage(verifiedUid, contextMsgKey); hideContextMenu();
+  });
+}
+
+document.addEventListener("click", function(e) {
+  if (contextMenu && !contextMenu.contains(e.target)) hideContextMenu();
+});
+
+if (replyClose) {
+  replyClose.addEventListener("click", function() {
+    replyingTo = null;
+    if (replyBar) replyBar.style.display = "none";
+  });
+}
+
+// message send karna
+async function sendTextMessage() {
+  if (!msgInput) return;
+  var text = msgInput.value.trim();
+  console.log("sendTextMessage called, text:", text, "uid:", verifiedUid);
+
+  if (!text) { console.log("No text, returning"); return; }
+  if (!verifiedUid) { console.log("No verifiedUid, returning"); return; }
+
+  msgInput.value = "";
+  var replyRef = replyingTo;
+  replyingTo = null;
+  if (replyBar) replyBar.style.display = "none";
+
+  try {
+    var success = await sendMessage(verifiedUid, "user", text, "", replyRef);
+    console.log("sendMessage result:", success);
+  } catch (error) {
+    console.error("sendTextMessage error:", error);
+  }
+}
+
+// image send karna
+async function sendImageMessage() {
+  if (!selectedImageFile || !verifiedUid) return;
+  if (!chatContainer) return;
+
+  var fileToUpload = selectedImageFile;
+  var replyRef = replyingTo;
+  closePreviewModal();
+  replyingTo = null;
+  if (replyBar) replyBar.style.display = "none";
+
+  var uploadingDiv = document.createElement("div");
+  uploadingDiv.className = "message user";
+  uploadingDiv.innerHTML = '<div class="msg-text">📷 Sending image...</div>';
+  chatContainer.appendChild(uploadingDiv);
+  scrollToBottom();
+
+  try {
+    var imageUrl = await uploadImage(verifiedUid, fileToUpload);
+    uploadingDiv.remove();
+    if (imageUrl) {
+      await sendMessage(verifiedUid, "user", "", imageUrl, replyRef);
+    } else {
+      showErrorBubble();
+    }
+  } catch (error) {
+    console.error("sendImageMessage error:", error);
+    uploadingDiv.remove();
+    showErrorBubble();
+  }
+}
+
+function showErrorBubble() {
+  if (!chatContainer) return;
+  var div = document.createElement("div");
+  div.className = "message user";
+  div.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Failed</div>';
+  chatContainer.appendChild(div);
+  scrollToBottom();
+}
+
+// image select karna
+if (imgBtn) {
+  imgBtn.addEventListener("click", function() { if (imageInput) imageInput.click(); });
+}
+
+if (imageInput) {
+  imageInput.addEventListener("change", function(e) {
+    var file = e.target.files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    selectedImageFile = file;
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      if (previewImage) previewImage.src = event.target.result;
+      if (imagePreviewModal) imagePreviewModal.style.display = "flex";
+    };
+    reader.readAsDataURL(file);
+    imageInput.value = "";
+  });
+}
+
+if (cancelPreview) { cancelPreview.addEventListener("click", closePreviewModal); }
+if (previewOverlay) { previewOverlay.addEventListener("click", closePreviewModal); }
+if (sendPreview) { sendPreview.addEventListener("click", sendImageMessage); }
+
+function closePreviewModal() {
+  if (imagePreviewModal) imagePreviewModal.style.display = "none";
+  if (previewImage) previewImage.src = "";
+  selectedImageFile = null;
+}
+
+function openFullImage(src) { window.open(src, "_blank"); }
+
+if (sendBtn) { sendBtn.addEventListener("click", sendTextMessage); }
+if (msgInput) {
+  msgInput.addEventListener("keypress", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTextMessage(); }
+  });
+}
+
+function scrollToBottom() {
+  if (!chatContainer) return;
+  requestAnimationFrame(function() { chatContainer.scrollTop = chatContainer.scrollHeight; });
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) return "";
+  var date = new Date(timestamp);
+  var now = new Date();
+  var isToday = date.toDateString() === now.toDateString();
+  var h = date.getHours(); var m = date.getMinutes();
+  var ampm = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  m = m < 10 ? "0" + m : m;
+  if (isToday) return h + ":" + m + " " + ampm;
+  return date.getDate() + " " + date.toLocaleString("en", { month: "short" }) + ", " + h + ":" + m + " " + ampm;
+}
+
+function escapeHtml(text) {
+  var d = document.createElement("div");
+  d.appendChild(document.createTextNode(text));
+  return d.innerHTML;
+}
+
+function showLoading(show) {
+  var overlay = document.getElementById("loadingOverlay");
+  if (show) {
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "loadingOverlay";
+      overlay.className = "loading-overlay";
+      overlay.innerHTML = '<div class="loading-spinner"></div>';
+      document.body.appendChild(overlay);
+    }
+  } else {
+    if (overlay) overlay.remove();
+  }
+}
+
+initApp();
