@@ -10,7 +10,7 @@ var contextMsgData = null;
 var allMessagesData = {};
 var pendingFcmToken = null;
 
-// DOM elements
+// DOM elements - null check ke saath
 var chatContainer = document.getElementById("chatContainer");
 var msgInput = document.getElementById("msgInput");
 var sendBtn = document.getElementById("sendBtn");
@@ -27,8 +27,6 @@ var replyName = document.getElementById("replyName");
 var replyText = document.getElementById("replyText");
 var replyClose = document.getElementById("replyClose");
 var contextMenu = document.getElementById("contextMenu");
-
-// context menu ke elements - null check ke saath
 var ctxReply = document.getElementById("ctxReply");
 var ctxCopy = document.getElementById("ctxCopy");
 var ctxDelete = document.getElementById("ctxDelete");
@@ -37,8 +35,7 @@ var ctxDelete = document.getElementById("ctxDelete");
 window.receiveAuthToken = async function(idToken) {
   if (isAuthenticating || currentUser) return;
   isAuthenticating = true;
-  onlineStatus.textContent = "Authenticating...";
-  onlineStatus.style.color = "#fcd34d";
+  if (onlineStatus) { onlineStatus.textContent = "Authenticating..."; onlineStatus.style.color = "#fcd34d"; }
 
   try {
     var customToken = await exchangeIdTokenForCustomToken(idToken);
@@ -48,8 +45,7 @@ window.receiveAuthToken = async function(idToken) {
         currentUser = result.user;
         verifiedUid = result.user.uid;
         console.log("Auth success, uid:", verifiedUid);
-        onlineStatus.textContent = "Online";
-        onlineStatus.style.color = "#86efac";
+        if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
         await ensureUserRegistered();
         loadUserChat();
         resetUnread(verifiedUid);
@@ -62,12 +58,10 @@ window.receiveAuthToken = async function(idToken) {
       }
     }
     console.error("Custom token sign in failed");
-    onlineStatus.textContent = "Auth failed";
-    onlineStatus.style.color = "#fca5a5";
+    if (onlineStatus) { onlineStatus.textContent = "Auth failed"; onlineStatus.style.color = "#fca5a5"; }
   } catch (error) {
     console.error("receiveAuthToken error:", error);
-    onlineStatus.textContent = "Auth error";
-    onlineStatus.style.color = "#fca5a5";
+    if (onlineStatus) { onlineStatus.textContent = "Auth error"; onlineStatus.style.color = "#fca5a5"; }
   } finally {
     isAuthenticating = false;
     showLoading(false);
@@ -106,16 +100,14 @@ async function exchangeIdTokenForCustomToken(idToken) {
 // app initialize karna
 async function initApp() {
   showLoading(true);
-  onlineStatus.textContent = "Connecting...";
-  onlineStatus.style.color = "#fcd34d";
+  if (onlineStatus) { onlineStatus.textContent = "Connecting..."; onlineStatus.style.color = "#fcd34d"; }
 
   onAuthChange(function(user) {
     if (user && !currentUser) {
       currentUser = user;
       verifiedUid = user.uid;
       console.log("onAuthChange: uid:", verifiedUid);
-      onlineStatus.textContent = "Online";
-      onlineStatus.style.color = "#86efac";
+      if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
       ensureUserRegistered().then(function() {
         loadUserChat();
         resetUnread(verifiedUid);
@@ -127,8 +119,7 @@ async function initApp() {
       });
       showLoading(false);
     } else if (!currentUser) {
-      onlineStatus.textContent = "Waiting for auth...";
-      onlineStatus.style.color = "#fcd34d";
+      if (onlineStatus) { onlineStatus.textContent = "Waiting for auth..."; onlineStatus.style.color = "#fcd34d"; }
       showLoading(false);
     }
   });
@@ -168,12 +159,14 @@ function loadUserChat() {
 
 // chat clear karna
 function clearChat() {
+  if (!chatContainer) return;
   var msgs = chatContainer.querySelectorAll(".message, .date-separator");
   for (var i = 0; i < msgs.length; i++) msgs[i].remove();
 }
 
 // message append karna
 function appendMessage(msgKey, msg) {
+  if (!chatContainer) return;
   var div = document.createElement("div");
   div.className = "message " + (msg.sender === "user" ? "user" : "admin");
   div.setAttribute("data-key", msgKey);
@@ -217,18 +210,21 @@ function appendMessage(msgKey, msg) {
   div.addEventListener("touchmove", function() { clearTimeout(pressTimer); });
 }
 
-// context menu
+// context menu - null safe
 function showContextMenu(e, msgKey, msg) {
   contextMsgKey = msgKey; contextMsgData = msg;
-  contextMenu.style.display = "block";
-  var x = e.clientX || 50; var y = e.clientY || 50;
-  if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
-  if (y + 130 > window.innerHeight) y = window.innerHeight - 140;
-  contextMenu.style.left = x + "px"; contextMenu.style.top = y + "px";
+  if (contextMenu) {
+    contextMenu.style.display = "block";
+    var x = e.clientX || 50; var y = e.clientY || 50;
+    if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
+    if (y + 130 > window.innerHeight) y = window.innerHeight - 140;
+    contextMenu.style.left = x + "px"; contextMenu.style.top = y + "px";
+  }
 }
 
 function hideContextMenu() {
-  contextMenu.style.display = "none"; contextMsgKey = null; contextMsgData = null;
+  if (contextMenu) { contextMenu.style.display = "none"; }
+  contextMsgKey = null; contextMsgData = null;
 }
 
 // context menu listeners - null check ke saath, crash nahi hoga
@@ -236,9 +232,11 @@ if (ctxReply) {
   ctxReply.addEventListener("click", function() {
     if (!contextMsgData) return;
     replyingTo = contextMsgKey;
-    replyName.textContent = contextMsgData.sender === "user" ? "You" : "Admin";
-    replyText.textContent = contextMsgData.text || "📷 Image";
-    replyBar.style.display = "flex"; msgInput.focus(); hideContextMenu();
+    if (replyName) replyName.textContent = contextMsgData.sender === "user" ? "You" : "Admin";
+    if (replyText) replyText.textContent = contextMsgData.text || "📷 Image";
+    if (replyBar) replyBar.style.display = "flex";
+    if (msgInput) msgInput.focus();
+    hideContextMenu();
   });
 }
 
@@ -262,17 +260,19 @@ if (ctxDelete) {
 }
 
 document.addEventListener("click", function(e) {
-  if (!contextMenu.contains(e.target)) hideContextMenu();
+  if (contextMenu && !contextMenu.contains(e.target)) hideContextMenu();
 });
 
 if (replyClose) {
   replyClose.addEventListener("click", function() {
-    replyingTo = null; replyBar.style.display = "none";
+    replyingTo = null;
+    if (replyBar) replyBar.style.display = "none";
   });
 }
 
 // message send karna
 async function sendTextMessage() {
+  if (!msgInput) return;
   var text = msgInput.value.trim();
   console.log("sendTextMessage called, text:", text, "uid:", verifiedUid);
 
@@ -282,7 +282,7 @@ async function sendTextMessage() {
   msgInput.value = "";
   var replyRef = replyingTo;
   replyingTo = null;
-  replyBar.style.display = "none";
+  if (replyBar) replyBar.style.display = "none";
 
   try {
     var success = await sendMessage(verifiedUid, "user", text, "", replyRef);
@@ -295,12 +295,13 @@ async function sendTextMessage() {
 // image send karna
 async function sendImageMessage() {
   if (!selectedImageFile || !verifiedUid) return;
+  if (!chatContainer) return;
 
   var fileToUpload = selectedImageFile;
   var replyRef = replyingTo;
   closePreviewModal();
   replyingTo = null;
-  replyBar.style.display = "none";
+  if (replyBar) replyBar.style.display = "none";
 
   var uploadingDiv = document.createElement("div");
   uploadingDiv.className = "message user";
@@ -324,6 +325,7 @@ async function sendImageMessage() {
 }
 
 function showErrorBubble() {
+  if (!chatContainer) return;
   var div = document.createElement("div");
   div.className = "message user";
   div.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Failed</div>';
@@ -333,7 +335,7 @@ function showErrorBubble() {
 
 // image select karna
 if (imgBtn) {
-  imgBtn.addEventListener("click", function() { imageInput.click(); });
+  imgBtn.addEventListener("click", function() { if (imageInput) imageInput.click(); });
 }
 
 if (imageInput) {
@@ -343,8 +345,8 @@ if (imageInput) {
     selectedImageFile = file;
     var reader = new FileReader();
     reader.onload = function(event) {
-      previewImage.src = event.target.result;
-      imagePreviewModal.style.display = "flex";
+      if (previewImage) previewImage.src = event.target.result;
+      if (imagePreviewModal) imagePreviewModal.style.display = "flex";
     };
     reader.readAsDataURL(file);
     imageInput.value = "";
@@ -356,8 +358,8 @@ if (previewOverlay) { previewOverlay.addEventListener("click", closePreviewModal
 if (sendPreview) { sendPreview.addEventListener("click", sendImageMessage); }
 
 function closePreviewModal() {
-  imagePreviewModal.style.display = "none";
-  previewImage.src = "";
+  if (imagePreviewModal) imagePreviewModal.style.display = "none";
+  if (previewImage) previewImage.src = "";
   selectedImageFile = null;
 }
 
@@ -371,6 +373,7 @@ if (msgInput) {
 }
 
 function scrollToBottom() {
+  if (!chatContainer) return;
   requestAnimationFrame(function() { chatContainer.scrollTop = chatContainer.scrollHeight; });
 }
 
