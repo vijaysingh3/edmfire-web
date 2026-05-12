@@ -46,10 +46,12 @@ body {
 .header-status { font-size: 11px; opacity: 0.85; }
 
 /* Chat Container */
+/* NAV BAR FIX: bottom padding itna rakho ki bottom-bar + nav bar ke neeche content na jaye */
 .chat-container {
   flex: 1;
   overflow-y: auto;
   padding: 12px 10px;
+  padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -127,11 +129,20 @@ body {
   margin-top: 4px; cursor: pointer; object-fit: cover; display: block;
 }
 
-/* Reply Bar */
+/* Reply Bar - bottom-bar ke bilkul upar fixed rahega */
 .reply-bar {
-  display: flex; align-items: center; padding: 8px 14px;
-  background: #f1f3f6; border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #f1f3f6;
+  border-top: 1px solid #e5e7eb;
   flex-shrink: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* bottom-bar height (58px) + nav bar safe area ke upar */
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  z-index: 9;
 }
 .reply-bar::before {
   content: ''; width: 3px; height: 32px; background: #6366f1;
@@ -146,14 +157,24 @@ body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #4b5563;
 }
 
-/* Bottom Bar */
+/* Bottom Bar - MAIN FIX */
+/* position fixed + env(safe-area-inset-bottom) = nav bar ke upar hamesha visible rahega */
 .bottom-bar {
-  padding: 8px 10px; background: white; display: flex;
-  align-items: center; gap: 6px; border-top: 1px solid #e5e7eb;
-  flex-shrink: 0; z-index: 10;
-  /* safe-area-inset-bottom = navigation bar ki height ke liye extra padding */
-  /* ye iPhone aur kuch Android phones me navigation bar ke upar space dega */
+  padding: 8px 10px;
+  /* NAV BAR FIX: nav bar ki exact height neeche padding me add hogi */
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  background: white;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  z-index: 10;
+  /* MAIN FIX: fixed position - nav bar ke upar hamesha dikhega */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .bottom-bar input[type="text"] {
