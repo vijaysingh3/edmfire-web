@@ -87,11 +87,11 @@ function showAccessDenied() {
   loginScreen.style.display = "none";
   dashboard.style.display = "flex";
   document.querySelector(".main-content").innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:16px;color:#ef4444;text-align:center;padding:40px;">' +
-    '<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-    '<h2 style="font-size:20px;">Access Denied</h2>' +
-    '<p style="font-size:14px;color:#6b7280;">UID (' + (currentAdmin ? currentAdmin.uid : '') + ') is not authorized as admin</p>' +
-    '<button onclick="handleLogout()" style="padding:10px 28px;border:none;border-radius:10px;background:#ef4444;color:white;font-size:14px;cursor:pointer;font-family:Poppins,sans-serif;">Sign Out</button>' +
+    '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:16px;color:#f87171;text-align:center;padding:40px;">' +
+    '<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+    '<h2 style="font-size:20px;color:#e8e9f0;">Access Denied</h2>' +
+    '<p style="font-size:14px;color:#7c7f96;">UID (' + (currentAdmin ? currentAdmin.uid : '') + ') is not authorized as admin</p>' +
+    '<button onclick="handleLogout()" style="padding:10px 28px;border:none;border-radius:10px;background:#d13a3a;color:white;font-size:14px;cursor:pointer;font-family:Poppins,sans-serif;">Sign Out</button>' +
     '</div>';
 }
 
@@ -442,7 +442,7 @@ async function sendImageMessage() {
 
 function showErrorBubble() {
   var div = document.createElement("div"); div.className = "message admin";
-  div.innerHTML = '<div class="msg-text" style="color:#fca5a5;">❌ Image failed</div>';
+  div.innerHTML = '<div class="msg-text" style="color:#f87171;">❌ Image failed</div>';
   messagesContainer.appendChild(div); scrollToBottom();
 }
 
