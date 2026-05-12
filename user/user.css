@@ -2,6 +2,7 @@
 
 :root {
   --app-height: 100vh;
+  --nav-bar-height: 0px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
@@ -46,12 +47,12 @@ body {
 .header-status { font-size: 11px; opacity: 0.85; }
 
 /* Chat Container */
-/* NAV BAR FIX: bottom padding itna rakho ki bottom-bar + nav bar ke neeche content na jaye */
+/* Android JS se chatContainer.paddingBottom inject hogi - nav bar + bottom-bar cover hoga */
 .chat-container {
   flex: 1;
   overflow-y: auto;
   padding: 12px 10px;
-  padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 70px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -129,7 +130,8 @@ body {
   margin-top: 4px; cursor: pointer; object-fit: cover; display: block;
 }
 
-/* Reply Bar - bottom-bar ke bilkul upar fixed rahega */
+/* Reply Bar - bottom-bar ke upar fixed */
+/* Android JS se bottom value inject hogi dynamically */
 .reply-bar {
   display: flex;
   align-items: center;
@@ -140,8 +142,7 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  /* bottom-bar height (58px) + nav bar safe area ke upar */
-  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  bottom: 58px;
   z-index: 9;
 }
 .reply-bar::before {
@@ -158,11 +159,9 @@ body {
 }
 
 /* Bottom Bar - MAIN FIX */
-/* position fixed + env(safe-area-inset-bottom) = nav bar ke upar hamesha visible rahega */
+/* position fixed + Android se paddingBottom inject hogi = nav bar ke upar hamesha visible */
 .bottom-bar {
   padding: 8px 10px;
-  /* NAV BAR FIX: nav bar ki exact height neeche padding me add hogi */
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   background: white;
   display: flex;
   align-items: center;
@@ -170,7 +169,6 @@ body {
   border-top: 1px solid #e5e7eb;
   flex-shrink: 0;
   z-index: 10;
-  /* MAIN FIX: fixed position - nav bar ke upar hamesha dikhega */
   position: fixed;
   bottom: 0;
   left: 0;
