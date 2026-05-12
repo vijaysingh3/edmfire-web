@@ -1,23 +1,30 @@
 /* ============================================
    EDMFire Admin - Support Chats Styles
-   Full-height chat layout, fits PC screen
+   Full-height chat, sidebar toggle, mobile-friendly
+   WhatsApp pattern for mobile
    ============================================ */
 
 .chat-layout {
   display: flex;
   height: 100%;
-  /* No negative margin - chat-layout sits directly inside main-content */
 }
 
 /* ========== CHAT USER LIST (LEFT PANEL) ========== */
 .chat-sidebar {
   width: 280px;
-  max-width: 280px;
   background: #1a1d2e;
   border-right: 1px solid #2a2d42;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.3s ease;
+}
+
+/* Chat sidebar collapsed (desktop) */
+.chat-sidebar.collapsed {
+  width: 0;
+  border-right: none;
   overflow: hidden;
 }
 
@@ -25,11 +32,21 @@
   height: 56px;
   display: flex;
   align-items: center;
-  padding: 0 18px;
+  justify-content: space-between;
+  padding: 0 14px;
   border-bottom: 1px solid #2a2d42;
   flex-shrink: 0;
 }
 .chat-sidebar-header h2 { font-size: 15px; font-weight: 600; color: #e8e9f0; }
+
+/* Chat sidebar toggle button (in header) */
+.chat-sidebar-toggle {
+  width: 32px; height: 32px; border: none; border-radius: 8px;
+  background: transparent; cursor: pointer; color: #7c7f96;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.chat-sidebar-toggle:hover { background: #252840; color: #e8e9f0; }
 
 .chat-search {
   padding: 8px 12px;
@@ -98,12 +115,37 @@
   background: #1a1d2e;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 16px;
   border-bottom: 1px solid #2a2d42;
   flex-shrink: 0;
+  gap: 8px;
 }
-.chat-main-info { display: flex; flex-direction: column; }
-.chat-main-name { font-size: 15px; font-weight: 600; color: #e8e9f0; }
+
+/* Back button (mobile - go back to user list) */
+.chat-back-btn {
+  display: none;
+  width: 34px; height: 34px; border: none; border-radius: 8px;
+  background: transparent; cursor: pointer; color: #9d9fb5;
+  align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.chat-back-btn:hover { background: #252840; color: #e8e9f0; }
+
+/* Chat sidebar open button (appears when collapsed on desktop) */
+.chat-sidebar-open-btn {
+  width: 34px; height: 34px; border: none; border-radius: 8px;
+  background: transparent; cursor: pointer; color: #9d9fb5;
+  display: none; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.chat-sidebar-open-btn:hover { background: #252840; color: #e8e9f0; }
+/* Show open button when sidebar is collapsed */
+.chat-sidebar.collapsed ~ .chat-main .chat-sidebar-open-btn {
+  display: flex;
+}
+
+.chat-main-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.chat-main-name { font-size: 15px; font-weight: 600; color: #e8e9f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-main-status { font-size: 12px; color: #5a5d72; }
 
 .chat-messages {
@@ -239,6 +281,16 @@
 }
 .send-btn:active { transform: scale(0.9); }
 
+/* ========== CHAT SIDEBAR OVERLAY (Mobile) ========== */
+.chat-sidebar-overlay {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5); z-index: 240;
+  opacity: 0; transition: opacity 0.3s ease;
+}
+.chat-sidebar-overlay.active {
+  display: block; opacity: 1;
+}
+
 /* ========== IMAGE PREVIEW MODAL ========== */
 .image-preview-modal {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -281,22 +333,70 @@
 
 /* ========== RESPONSIVE - TABLET ========== */
 @media (max-width: 1024px) {
-  .chat-sidebar { width: 240px; max-width: 240px; }
+  .chat-sidebar { width: 240px; }
 }
 
-/* ========== RESPONSIVE - MOBILE ========== */
+/* ========== RESPONSIVE - MOBILE (WhatsApp Pattern) ========== */
 @media (max-width: 768px) {
-  .chat-layout { height: 100%; }
-
-  .chat-sidebar {
-    position: fixed; top: 56px; left: -300px;
-    height: calc(100% - 56px); width: 280px;
-    z-index: 250; transition: left 0.3s ease;
-    box-shadow: 2px 0 20px rgba(0,0,0,0.2);
-    background: #1a1d2e;
+  .chat-layout {
+    height: 100%;
+    flex-direction: column;
+    position: relative;
   }
-  .chat-sidebar.open { left: 0; }
 
-  .chat-main-header { padding-left: 16px; }
+  /* Mobile: chat-sidebar overlays the chat area as full screen panel */
+  .chat-sidebar {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; max-width: 100%;
+    z-index: 245;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    background: #1a1d2e;
+    border-right: none;
+  }
+
+  /* Hidden state: slide out to left */
+  .chat-sidebar.mobile-hidden {
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+
+  /* Reset collapsed for mobile */
+  .chat-sidebar.collapsed {
+    width: 100%; border-right: none;
+  }
+
+  /* Show back button on mobile when chat is active */
+  .chat-back-btn { display: flex; }
+
+  /* On mobile: show the chat sidebar toggle (close button) in header */
+  .chat-sidebar-toggle { display: flex; }
+
+  /* On mobile: always show the open sidebar button in chat header */
+  .chat-sidebar-open-btn { display: flex !important; }
+
   .message { max-width: 85%; }
+
+  /* Chat main takes full width on mobile */
+  .chat-main { width: 100%; }
+
+  /* Better touch targets */
+  .user-item { padding: 12px 16px; }
+  .user-avatar { width: 40px; height: 40px; font-size: 16px; }
+
+  /* Chat input adjustments */
+  .chat-input-bar { padding: 8px 10px; gap: 6px; }
+  .chat-input-bar input[type="text"] { height: 38px; font-size: 14px; }
+  .icon-btn { width: 38px; height: 38px; }
+  .send-btn { width: 38px; height: 38px; }
+}
+
+/* ========== RESPONSIVE - SMALL MOBILE ========== */
+@media (max-width: 480px) {
+  .chat-sidebar-header { padding: 0 10px; }
+  .chat-sidebar-header h2 { font-size: 14px; }
+  .chat-search { margin: 6px 10px; padding: 6px 10px; }
+  .chat-messages { padding: 10px; }
+  .message { font-size: 13px; padding: 7px 10px; }
+  .chat-main-header { padding: 0 10px; }
 }

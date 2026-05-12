@@ -1,5 +1,7 @@
 // ============================================
 // EDMFire Admin - Support Chats Logic
+// With sidebar toggle + mobile WhatsApp pattern
+// Smart auto-close system
 // ============================================
 
 var selectedUserUid = null;
@@ -9,6 +11,7 @@ var replyingTo = null;
 var contextMsgKey = null;
 var contextMsgData = null;
 var allMessagesData = {};
+var isMobile = window.innerWidth <= 768;
 
 // Chat DOM elements
 var userList = document.getElementById("userList");
@@ -31,6 +34,116 @@ var previewImage = document.getElementById("previewImage");
 var previewOverlay = document.getElementById("previewOverlay");
 var cancelPreview = document.getElementById("cancelPreview");
 var sendPreview = document.getElementById("sendPreview");
+
+// Chat sidebar elements
+var chatSidebar = document.getElementById("chatSidebar");
+var chatSidebarToggle = document.getElementById("chatSidebarToggle");
+var chatBackBtn = document.getElementById("chatBackBtn");
+var chatSidebarOpenBtn = document.getElementById("chatSidebarOpenBtn");
+var chatSidebarOverlay = document.getElementById("chatSidebarOverlay");
+
+// ========== CHAT SIDEBAR TOGGLE ==========
+
+// Desktop: toggle collapse
+function toggleChatSidebar() {
+  if (!chatSidebar) return;
+  if (isMobile) {
+    // On mobile, this button hides the sidebar
+    hideMobileChatSidebar();
+  } else {
+    // On desktop, toggle collapse
+    chatSidebar.classList.toggle("collapsed");
+    localStorage.setItem("edmfireChatSidebarCollapsed", chatSidebar.classList.contains("collapsed"));
+  }
+}
+
+// Mobile: show user list
+function showMobileChatSidebar() {
+  if (!chatSidebar) return;
+  chatSidebar.classList.remove("mobile-hidden");
+  if (chatSidebarOverlay) chatSidebarOverlay.classList.add("active");
+}
+
+// Mobile: hide user list (show chat)
+function hideMobileChatSidebar() {
+  if (!chatSidebar) return;
+  chatSidebar.classList.add("mobile-hidden");
+  if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
+}
+
+// Initialize chat sidebar state based on screen size
+function initChatSidebarState() {
+  if (!chatSidebar) return;
+  isMobile = window.innerWidth <= 768;
+
+  if (isMobile) {
+    // Mobile: reset collapsed, show sidebar initially (no chat selected yet)
+    chatSidebar.classList.remove("collapsed");
+    if (!selectedUserUid) {
+      // No chat selected: show user list
+      chatSidebar.classList.remove("mobile-hidden");
+    } else {
+      // Chat selected: hide user list, show chat
+      chatSidebar.classList.add("mobile-hidden");
+    }
+    // Remove overlay on init
+    if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
+  } else {
+    // Desktop: reset mobile-hidden, restore collapsed state from localStorage
+    chatSidebar.classList.remove("mobile-hidden");
+    if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
+    if (localStorage.getItem("edmfireChatSidebarCollapsed") === "true") {
+      chatSidebar.classList.add("collapsed");
+    } else {
+      chatSidebar.classList.remove("collapsed");
+    }
+  }
+}
+
+// Event listeners for toggle buttons
+if (chatSidebarToggle) {
+  chatSidebarToggle.addEventListener("click", toggleChatSidebar);
+}
+
+if (chatSidebarOpenBtn) {
+  chatSidebarOpenBtn.addEventListener("click", function() {
+    if (isMobile) {
+      showMobileChatSidebar();
+    } else {
+      chatSidebar.classList.remove("collapsed");
+      localStorage.setItem("edmfireChatSidebarCollapsed", "false");
+    }
+  });
+}
+
+if (chatBackBtn) {
+  chatBackBtn.addEventListener("click", function() {
+    showMobileChatSidebar();
+  });
+}
+
+// Chat sidebar overlay click to close
+if (chatSidebarOverlay) {
+  chatSidebarOverlay.addEventListener("click", function() {
+    hideMobileChatSidebar();
+  });
+}
+
+// ========== SMART AUTO-CLOSE ON RESIZE ==========
+var chatPrevWidth = window.innerWidth;
+
+window.addEventListener("resize", function() {
+  var currentWidth = window.innerWidth;
+  var wasMobile = isMobile;
+  isMobile = currentWidth <= 768;
+
+  // When switching between mobile and desktop, reinitialize
+  if (wasMobile !== isMobile) {
+    initChatSidebarState();
+  }
+
+  chatPrevWidth = currentWidth;
+});
 
 // ========== LOAD USERS ==========
 function loadUsersList() {
@@ -79,6 +192,11 @@ function selectUser(uid, userData) {
   for (var i = 0; i < items.length; i++) {
     items[i].classList.remove("active");
     if (items[i].getAttribute("data-uid") === uid) items[i].classList.add("active");
+  }
+
+  // Mobile: auto-hide user list after selecting a chat (smart auto-close)
+  if (isMobile) {
+    hideMobileChatSidebar();
   }
 
   resetUnread(uid);
@@ -252,3 +370,4 @@ initAuthGuard(function(user) {
   loadUsersList();
 });
 initCommonUI();
+initChatSidebarState();

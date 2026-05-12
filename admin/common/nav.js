@@ -1,6 +1,7 @@
 // ============================================
 // EDMFire Admin - Shared Navigation & Auth Guard
-// Sidebar toggle, auth check, logout, user info
+// Sidebar toggle (PC + mobile), auth check, logout
+// Smart auto-close system
 // ============================================
 
 var currentAdmin = null;
@@ -54,24 +55,134 @@ function showAccessDenied() {
   }
 }
 
-// ========== SIDEBAR TOGGLE (MOBILE) ==========
+// ========== SIDEBAR OPEN/CLOSE HELPERS ==========
+function openSidebar() {
+  var sidebar = document.getElementById("sidebar");
+  var overlay = document.getElementById("sidebarOverlay");
+  var hamburgerBtn = document.getElementById("hamburgerBtn");
+  if (sidebar) sidebar.classList.add("open");
+  if (overlay) overlay.classList.add("active");
+  if (hamburgerBtn) hamburgerBtn.classList.add("active");
+}
+
+function closeSidebar() {
+  var sidebar = document.getElementById("sidebar");
+  var overlay = document.getElementById("sidebarOverlay");
+  var hamburgerBtn = document.getElementById("hamburgerBtn");
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.remove("active");
+  if (hamburgerBtn) hamburgerBtn.classList.remove("active");
+}
+
+function isSidebarOpen() {
+  var sidebar = document.getElementById("sidebar");
+  return sidebar && sidebar.classList.contains("open");
+}
+
+// ========== SIDEBAR TOGGLE (PC - COLLAPSE/EXPAND) ==========
+function initSidebarCollapseToggle() {
+  var sidebar = document.getElementById("sidebar");
+  if (!sidebar) return;
+
+  // Only add toggle button on desktop
+  if (window.innerWidth <= 768) return;
+
+  // Check if toggle button already exists
+  if (document.getElementById("sidebarToggleBtn")) return;
+
+  // Create toggle button
+  var toggleBtn = document.createElement("button");
+  toggleBtn.id = "sidebarToggleBtn";
+  toggleBtn.className = "sidebar-toggle-btn";
+  toggleBtn.title = "Toggle sidebar";
+  toggleBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>';
+
+  // Insert into sidebar-brand
+  var brand = sidebar.querySelector(".sidebar-brand");
+  if (brand) {
+    brand.appendChild(toggleBtn);
+  }
+
+  // Add data-label to nav items for tooltip
+  var navItems = sidebar.querySelectorAll(".nav-item");
+  for (var i = 0; i < navItems.length; i++) {
+    var span = navItems[i].querySelector("span");
+    if (span) {
+      navItems[i].setAttribute("data-label", span.textContent);
+    }
+  }
+
+  // Restore collapsed state from localStorage
+  if (localStorage.getItem("edmfireSidebarCollapsed") === "true") {
+    sidebar.classList.add("collapsed");
+  }
+
+  // Toggle handler
+  toggleBtn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    sidebar.classList.toggle("collapsed");
+    localStorage.setItem("edmfireSidebarCollapsed", sidebar.classList.contains("collapsed"));
+  });
+}
+
+// ========== SIDEBAR TOGGLE (MOBILE - HAMBURGER) ==========
 function initSidebar() {
   var hamburgerBtn = document.getElementById("hamburgerBtn");
-  var sidebar = document.getElementById("sidebar");
   var sidebarOverlay = document.getElementById("sidebarOverlay");
 
   if (hamburgerBtn) {
     hamburgerBtn.addEventListener("click", function() {
-      if (sidebar) sidebar.classList.toggle("open");
-      if (sidebarOverlay) sidebarOverlay.classList.toggle("active");
+      if (isSidebarOpen()) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
     });
   }
+
+  // Close sidebar when clicking overlay
   if (sidebarOverlay) {
     sidebarOverlay.addEventListener("click", function() {
-      if (sidebar) sidebar.classList.remove("open");
-      sidebarOverlay.classList.remove("active");
+      closeSidebar();
     });
   }
+
+  // ===== SMART AUTO-CLOSE: Close sidebar on nav link click (mobile) =====
+  var navItems = document.querySelectorAll(".sidebar-nav .nav-item");
+  for (var i = 0; i < navItems.length; i++) {
+    navItems[i].addEventListener("click", function() {
+      if (window.innerWidth <= 768) {
+        closeSidebar();
+      }
+    });
+  }
+}
+
+// ========== SMART AUTO-CLOSE ON RESIZE ==========
+function initSmartAutoClose() {
+  var sidebar = document.getElementById("sidebar");
+  var prevWidth = window.innerWidth;
+
+  window.addEventListener("resize", function() {
+    var currentWidth = window.innerWidth;
+
+    // If transitioning from desktop to mobile: close sidebar
+    if (prevWidth > 768 && currentWidth <= 768) {
+      closeSidebar();
+      if (sidebar) sidebar.classList.remove("collapsed");
+    }
+
+    // If transitioning from mobile to desktop: reset mobile state
+    if (prevWidth <= 768 && currentWidth > 768) {
+      closeSidebar(); // removes .open class
+      // Restore desktop collapsed state
+      if (sidebar && localStorage.getItem("edmfireSidebarCollapsed") === "true") {
+        sidebar.classList.add("collapsed");
+      }
+    }
+
+    prevWidth = currentWidth;
+  });
 }
 
 // ========== LOGOUT ==========
@@ -88,10 +199,43 @@ function initLogoutButtons() {
   if (mobileLogoutBtn) mobileLogoutBtn.addEventListener("click", handleLogout);
 }
 
+// ========== PAGE SIDEBAR TOGGLE BUTTON (Desktop) ==========
+// Creates a toggle button in page headers that appears when sidebar is collapsed
+function initPageSidebarToggle() {
+  var pageHeaders = document.querySelectorAll(".page-header");
+  if (pageHeaders.length === 0) return;
+  if (window.innerWidth <= 768) return;
+
+  var sidebar = document.getElementById("sidebar");
+  if (!sidebar) return;
+
+  // Add toggle button to each page header
+  for (var i = 0; i < pageHeaders.length; i++) {
+    if (pageHeaders[i].querySelector(".page-sidebar-toggle")) continue;
+
+    var btn = document.createElement("button");
+    btn.className = "page-sidebar-toggle";
+    btn.title = "Expand sidebar";
+    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>';
+
+    (function(button) {
+      button.addEventListener("click", function() {
+        sidebar.classList.remove("collapsed");
+        localStorage.setItem("edmfireSidebarCollapsed", "false");
+      });
+    })(btn);
+
+    pageHeaders[i].insertBefore(btn, pageHeaders[i].firstChild);
+  }
+}
+
 // ========== AUTO INIT ==========
 // Call these on DOMContentLoaded for every inner page
 function initCommonUI() {
   initSidebar();
+  initSidebarCollapseToggle();
+  initPageSidebarToggle();
+  initSmartAutoClose();
   initLogoutButtons();
 }
 
