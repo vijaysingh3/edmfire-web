@@ -1,17 +1,18 @@
 // User Chat Page Logic
 
 // Height fix: 100vh Android WebView me navigation bar include karta hai
-// isliye CSS me ab height: 100% use kar rahe hai (fitsSystemWindows ke saath)
-// ye setAppHeight() sirf EMERGENCY fallback hai - agar 100% kaam na kare
+// isliye CSS me ab height: 100% use kar rahe hai
+// Kotlin me WebView ko navBarHeight ke barabar bottom padding diya hai
+// isse body ka 100% = actual visible screen height (nav bar excluded)
+// ye setAppHeight() sirf EMERGENCY fallback hai
 function setAppHeight() {
-  // Check karo ki body ka content visible area se zyada toh nahi hai
-  var bodyH = document.body.scrollHeight;
+  // Check karo ki body visible area se zyada toh nahi hai
   var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  var bodyH = document.body.scrollHeight;
   // Agar body viewport se bada hai matlab page fit nahi ho raha
-  // tab --app-height set karo as emergency fix
+  // tab emergency fix lagao
   if (bodyH > viewH + 10) {
-    document.documentElement.style.setProperty("--app-height", viewH + "px");
-    document.body.style.height = "var(--app-height)";
+    document.body.style.height = viewH + "px";
   }
 }
 setAppHeight();

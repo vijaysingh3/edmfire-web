@@ -2,9 +2,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
 
-/* html aur body - 100% height use karo, 100vh nahi
+/* html aur body - SIRF 100% use karo, 100vh NAHI
    100vh Android WebView me navigation bar area bhi include karta hai
-   100% + fitsSystemWindows (Kotlin) = sirf visible area, nav bar exclude */
+   100% + WebView bottom padding (Kotlin) = sirf visible area
+   Kotlin me navBarHeight ke barabar bottom padding add kiya hai
+   isse body ka 100% = actual visible screen height hoga */
 html, body {
   width: 100%;
   height: 100%;
@@ -145,13 +147,14 @@ body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #4b5563;
 }
 
-/* Bottom Bar - input + send button */
+/* Bottom Bar - input + image picker + send button */
 .bottom-bar {
   padding: 8px 10px; background: white; display: flex;
   align-items: center; gap: 6px; border-top: 1px solid #e5e7eb;
   flex-shrink: 0; z-index: 10;
+  /* wrap NAHI karna - sabhi elements ek line me rahenge */
   flex-wrap: nowrap;
-  /* navigation bar ke upar extra padding - safety net */
+  /* safe-area-inset-bottom extra safety ke liye (iPhone + kuch Android) */
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -172,7 +175,7 @@ body {
 .send-btn {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white; box-shadow: 0 2px 8px rgba(99,102,241,0.3);
-  /* send button kabhi shrink nahi hoga - hamesha dikhega */
+  /* send button kabhi shrink/choota nahi hoga */
   flex-shrink: 0;
 }
 
