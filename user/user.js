@@ -1,11 +1,18 @@
 // User Chat Page Logic
 
-// WebView me 100vh navigation bar include karta hai
-// visualViewport.height actual visible area deta hai (nav bar exclude)
-// ye fix phone pe send button hide hone ka problem solve karega
+// Height fix: 100vh Android WebView me navigation bar include karta hai
+// isliye CSS me ab height: 100% use kar rahe hai (fitsSystemWindows ke saath)
+// ye setAppHeight() sirf EMERGENCY fallback hai - agar 100% kaam na kare
 function setAppHeight() {
-  var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
-  document.documentElement.style.setProperty("--app-height", h + "px");
+  // Check karo ki body ka content visible area se zyada toh nahi hai
+  var bodyH = document.body.scrollHeight;
+  var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  // Agar body viewport se bada hai matlab page fit nahi ho raha
+  // tab --app-height set karo as emergency fix
+  if (bodyH > viewH + 10) {
+    document.documentElement.style.setProperty("--app-height", viewH + "px");
+    document.body.style.height = "var(--app-height)";
+  }
 }
 setAppHeight();
 if (window.visualViewport) {
@@ -348,18 +355,18 @@ function showErrorBubble() {
 if (imgBtn) { imgBtn.addEventListener("click", function() { if (imageInput) imageInput.click(); }); }
 
 if (imageInput) {
-  imageInput.addEventListener("change", function(e) {
-    var file = e.target.files[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    selectedImageFile = file;
-    var reader = new FileReader();
-    reader.onload = function(event) {
-      if (previewImage) previewImage.src = event.target.result;
-      if (imagePreviewModal) imagePreviewModal.style.display = "flex";
-    };
-    reader.readAsDataURL(file);
-    imageInput.value = "";
-  });
+imageInput.addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file || !file.type.startsWith("image/")) return;
+  selectedImageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(event) {
+    if (previewImage) previewImage.src = event.target.result;
+    if (imagePreviewModal) imagePreviewModal.style.display = "flex";
+  };
+  reader.readAsDataURL(file);
+  imageInput.value = "";
+});
 }
 
 if (cancelPreview) { cancelPreview.addEventListener("click", closePreviewModal); }
