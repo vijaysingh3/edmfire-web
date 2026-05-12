@@ -151,6 +151,9 @@ body {
   padding: 8px 10px; background: white; display: flex;
   align-items: center; gap: 6px; border-top: 1px solid #e5e7eb;
   flex-shrink: 0; z-index: 10;
+  /* safe-area-inset-bottom = navigation bar ki height ke liye extra padding */
+  /* ye iPhone aur kuch Android phones me navigation bar ke upar space dega */
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-bar input[type="text"] {
