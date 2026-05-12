@@ -124,12 +124,13 @@ html, body {
 
 /* ========== MAIN CONTENT ========== */
 .main-content {
-  flex: 1; overflow-y: auto; min-width: 0;
+  flex: 1; overflow: hidden; min-width: 0;
   background: #0f1117;
+  display: flex; flex-direction: column;
 }
 
 /* ========== SHARED PAGE STYLES ========== */
-.page-content { padding: 28px 30px; min-height: 100%; }
+.page-content { padding: 28px 30px; flex: 1; overflow-y: auto; }
 
 .page-header { margin-bottom: 28px; }
 .page-title { font-size: 24px; font-weight: 700; color: #e8e9f0; margin-bottom: 4px; }
