@@ -1,0 +1,70 @@
+/* ============================================
+   EDMFire Admin - Dashboard Home Styles
+   ============================================ */
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px; margin-bottom: 30px;
+}
+
+.stat-card {
+  background: #1a1d2e; border-radius: 14px; padding: 20px;
+  display: flex; align-items: center; gap: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid #252840;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+
+.stat-icon {
+  width: 50px; height: 50px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-info { display: flex; flex-direction: column; }
+.stat-value { font-size: 26px; font-weight: 700; color: #e8e9f0; line-height: 1.2; }
+.stat-label { font-size: 12px; color: #7c7f96; font-weight: 500; }
+
+.dashboard-section {
+  background: #1a1d2e; border-radius: 14px; padding: 22px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid #252840;
+}
+
+.section-title {
+  font-size: 16px; font-weight: 600; color: #e8e9f0; margin-bottom: 16px;
+}
+
+.activity-list { display: flex; flex-direction: column; gap: 4px; }
+
+.activity-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid #252840;
+}
+.activity-item:last-child { border-bottom: none; }
+
+.activity-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #1e2148; color: #9d8cf8;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; flex-shrink: 0;
+}
+
+.activity-info { flex: 1; min-width: 0; }
+.activity-name { font-size: 13px; font-weight: 500; color: #d8dae5; }
+.activity-detail { font-size: 11px; color: #5a5d72; }
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 20px; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-icon { width: 40px; height: 40px; }
+  .stat-icon svg { width: 18px; height: 18px; }
+  .stat-value { font-size: 18px; }
+  .stat-label { font-size: 10px; }
+}

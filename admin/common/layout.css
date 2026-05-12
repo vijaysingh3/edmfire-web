@@ -1,0 +1,179 @@
+/* ============================================
+   EDMFire Admin - Shared Layout (Dark Theme)
+   Sidebar, Topbar, Base styles, Responsive
+   ============================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: #0f1117;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* ========== DASHBOARD LAYOUT ========== */
+.dashboard {
+  display: flex; width: 100%; height: 100%;
+}
+
+/* ========== MOBILE TOPBAR ========== */
+.mobile-topbar {
+  display: none; position: fixed; top: 0; left: 0; right: 0;
+  height: 56px; background: #1a1d2e; z-index: 200;
+  border-bottom: 1px solid #2a2d42;
+  align-items: center; padding: 0 14px; gap: 12px;
+}
+.mobile-topbar-title { flex: 1; font-size: 16px; font-weight: 600; color: #e8e9f0; }
+
+.hamburger-btn {
+  width: 40px; height: 40px; border: none; border-radius: 10px;
+  background: transparent; cursor: pointer; color: #9d9fb5;
+  display: flex; align-items: center; justify-content: center;
+}
+.hamburger-btn:hover { background: #252840; }
+
+.mobile-topbar-logout {
+  width: 40px; height: 40px; border: none; border-radius: 10px;
+  background: transparent; cursor: pointer; color: #7c7f96;
+  display: flex; align-items: center; justify-content: center;
+}
+.mobile-topbar-logout:hover { background: #2d1f2f; color: #f87171; }
+
+/* ========== SIDEBAR OVERLAY ========== */
+.sidebar-overlay {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6); z-index: 298;
+}
+.sidebar-overlay.active { display: block; }
+
+/* ========== SIDEBAR ========== */
+.sidebar {
+  width: 260px; background: #1a1d2e; height: 100%;
+  display: flex; flex-direction: column;
+  border-right: 1px solid #2a2d42; flex-shrink: 0; z-index: 299;
+}
+
+.sidebar-brand {
+  height: 68px; display: flex; align-items: center;
+  padding: 0 18px; gap: 12px; border-bottom: 1px solid #2a2d42;
+}
+.sidebar-brand-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(135deg, #7c6cf0, #9d8cf8);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sidebar-brand-text { display: flex; flex-direction: column; }
+.sidebar-brand-name { font-size: 16px; font-weight: 700; color: #e8e9f0; line-height: 1.2; }
+.sidebar-brand-role { font-size: 11px; color: #7c7f96; }
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1; padding: 12px 10px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 10px;
+  cursor: pointer; color: #9d9fb5; font-size: 14px; font-weight: 500;
+  transition: all 0.15s; position: relative;
+  text-decoration: none;
+}
+.nav-item:hover { background: #252840; color: #d8dae5; }
+.nav-item.active {
+  background: #1e2148; color: #9d8cf8; font-weight: 600;
+}
+.nav-item.active svg { stroke: #9d8cf8; }
+
+.nav-badge {
+  min-width: 20px; height: 20px; border-radius: 10px;
+  background: linear-gradient(135deg, #7c6cf0, #9d8cf8);
+  color: #ffffff; font-size: 10px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 5px; margin-left: auto;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 12px 14px; border-top: 1px solid #2a2d42;
+  display: flex; align-items: center; gap: 8px;
+}
+.sidebar-user {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  min-width: 0;
+}
+.sidebar-user-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c6cf0, #9d8cf8);
+  color: #ffffff; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; flex-shrink: 0;
+}
+.sidebar-user-info { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-user-name { font-size: 13px; font-weight: 600; color: #d8dae5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-user-email { font-size: 11px; color: #5a5d72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.sidebar-logout {
+  width: 36px; height: 36px; border: none; border-radius: 8px;
+  background: transparent; cursor: pointer; color: #5a5d72;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.sidebar-logout:hover { background: #2d1f2f; color: #f87171; }
+
+/* ========== MAIN CONTENT ========== */
+.main-content {
+  flex: 1; overflow-y: auto; min-width: 0;
+  background: #0f1117;
+}
+
+/* ========== SHARED PAGE STYLES ========== */
+.page-content { padding: 28px 30px; min-height: 100%; }
+
+.page-header { margin-bottom: 28px; }
+.page-title { font-size: 24px; font-weight: 700; color: #e8e9f0; margin-bottom: 4px; }
+.page-subtitle { font-size: 14px; color: #7c7f96; }
+
+.empty-placeholder {
+  text-align: center; color: #5a5d72; font-size: 13px;
+  padding: 20px;
+}
+
+.empty-page {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 80px 20px; text-align: center;
+}
+.empty-page h2 { font-size: 20px; font-weight: 600; color: #7c7f96; margin-top: 20px; }
+.empty-page p { font-size: 14px; color: #5a5d72; margin-top: 6px; }
+
+/* ========== LOADING ========== */
+.loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,17,23,0.95); display: flex; align-items: center; justify-content: center; z-index: 9998; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #252840; border-top-color: #7c6cf0; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ========== GLOBAL SCROLLBAR ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0f1117; }
+::-webkit-scrollbar-thumb { background: #3a3d52; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #4a4d62; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .mobile-topbar { display: flex; }
+
+  .sidebar {
+    position: fixed; top: 0; left: -280px; height: 100%;
+    width: 270px; z-index: 299; transition: left 0.3s ease;
+    box-shadow: 2px 0 20px rgba(0,0,0,0.3);
+    background: #1a1d2e;
+  }
+  .sidebar.open { left: 0; }
+
+  .main-content { padding-top: 56px; }
+  .page-content { padding: 20px 16px; }
+}
+
+@media (max-width: 480px) {
+  .page-content { padding: 16px 12px; }
+}
