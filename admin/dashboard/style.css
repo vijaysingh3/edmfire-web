@@ -26,6 +26,34 @@
 .stat-value { font-size: 26px; font-weight: 700; color: #e8e9f0; line-height: 1.2; }
 .stat-label { font-size: 12px; color: #7c7f96; font-weight: 500; }
 
+/* ========== Host Applications Button ========== */
+.host-app-btn {
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(135deg, #1a1d2e, #1e2148);
+  border-radius: 14px; padding: 20px 24px;
+  margin-bottom: 30px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid #2a2d42;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.host-app-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(124,108,240,0.15);
+  border-color: #7c6cf0;
+}
+.host-app-icon {
+  width: 50px; height: 50px; border-radius: 12px;
+  background: linear-gradient(135deg, #5b4cc4, #7c6cf0);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: #ffffff;
+}
+.host-app-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.host-app-title { font-size: 16px; font-weight: 600; color: #e8e9f0; }
+.host-app-desc { font-size: 12px; color: #7c7f96; margin-top: 2px; }
+.host-app-arrow { color: #5a5d72; flex-shrink: 0; transition: color 0.15s, transform 0.15s; }
+.host-app-btn:hover .host-app-arrow { color: #7c6cf0; transform: translateX(4px); }
+
 .dashboard-section {
   background: #1a1d2e; border-radius: 14px; padding: 22px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
