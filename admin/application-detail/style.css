@@ -175,11 +175,173 @@
 .detail-error h2 { font-size: 18px; color: #ef4444; }
 .detail-error p { font-size: 13px; color: #7c7f96; }
 
+/* ========== Custom Dialog Overlay ========== */
+.dialog-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6); z-index: 9998;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ========== Custom Dialog Box ========== */
+.dialog-box {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: #1a1d2e; border-radius: 18px;
+  padding: 28px; z-index: 9999;
+  min-width: 320px; max-width: 440px; width: 90%;
+  border: 1px solid #2a2d42;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: dialogSlide 0.2s ease;
+  text-align: center;
+}
+
+@keyframes dialogSlide {
+  from { opacity: 0; transform: translate(-50%, -45%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.dialog-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.dialog-icon-approve {
+  background: rgba(16, 185, 129, 0.15); color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.dialog-icon-reject {
+  background: rgba(239, 68, 68, 0.15); color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.dialog-title {
+  font-size: 18px; font-weight: 700; color: #e8e9f0;
+  margin-bottom: 8px;
+}
+
+.dialog-message {
+  font-size: 13px; color: #7c7f96; line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.dialog-message strong {
+  color: #e8e9f0; font-weight: 600;
+}
+
+.dialog-textarea {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  background: #0f1117; border: 1px solid #2a2d42;
+  color: #e8e9f0; font-size: 14px; font-family: 'Poppins', sans-serif;
+  resize: vertical; min-height: 80px;
+  outline: none; transition: border-color 0.15s;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.dialog-textarea:focus {
+  border-color: #7c6cf0;
+}
+
+.dialog-textarea::placeholder {
+  color: #3a3d52;
+}
+
+.dialog-buttons {
+  display: flex; gap: 10px;
+}
+
+.dialog-btn {
+  flex: 1; padding: 12px 16px; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.dialog-btn:active { transform: scale(0.97); }
+
+.dialog-btn-cancel {
+  background: #252840; color: #7c7f96;
+  border: 1px solid #2a2d42;
+}
+
+.dialog-btn-cancel:hover {
+  background: #2a2d42; color: #e8e9f0;
+}
+
+.dialog-btn-confirm {
+  color: #fff;
+}
+
+.dialog-btn-green {
+  background: linear-gradient(135deg, #059669, #10b981);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.dialog-btn-green:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+.dialog-btn-red {
+  background: linear-gradient(135deg, #b52222, #ef4444);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+.dialog-btn-red:hover {
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+}
+
+/* ========== Toast Notification ========== */
+.toast-notification {
+  position: fixed; top: 20px; right: 20px;
+  padding: 14px 20px; border-radius: 12px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 500; z-index: 10000;
+  animation: toastIn 0.25s ease;
+  max-width: 400px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.toast-fade {
+  animation: toastOut 0.3s ease forwards;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(40px); }
+}
+
+.toast-success {
+  background: #0f2a1e; color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.toast-error {
+  background: #2a0f0f; color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.toast-info {
+  background: #1a1d2e; color: #7c6cf0;
+  border: 1px solid rgba(124, 108, 240, 0.3);
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 768px) {
   .detail-fields { grid-template-columns: 1fr 1fr; }
   .detail-images { grid-template-columns: 1fr 1fr; }
   .detail-actions { flex-direction: column; }
+  .dialog-box { min-width: 280px; padding: 22px; }
+  .toast-notification { left: 16px; right: 16px; top: 12px; max-width: none; }
 }
 
 @media (max-width: 480px) {
