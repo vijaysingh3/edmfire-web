@@ -6,6 +6,7 @@ var statTotalUsers = document.getElementById("statTotalUsers");
 var statActiveChats = document.getElementById("statActiveChats");
 var statUnreadMsg = document.getElementById("statUnreadMsg");
 var statNotifications = document.getElementById("statNotifications");
+var statHostApps = document.getElementById("statHostApps");
 var activityList = document.getElementById("activityList");
 var navChatBadge = document.getElementById("navChatBadge");
 
@@ -39,6 +40,24 @@ function loadDashboardStats() {
 
     // Recent activity
     renderActivity(uids, usersData);
+  });
+
+  // Load host applications count from Firestore
+  loadHostAppsCount();
+}
+
+function loadHostAppsCount() {
+  if (!firebase.firestore) return;
+  var db = firebase.firestore();
+  db.collection("applications").where("status", "==", "pending").get().then(function(snapshot) {
+    var count = snapshot.size;
+    if (statHostApps) statHostApps.textContent = count;
+  }).catch(function(err) {
+    console.error("Host apps count error:", err);
+    // Fallback: total count
+    db.collection("applications").get().then(function(snapshot) {
+      if (statHostApps) statHostApps.textContent = snapshot.size;
+    }).catch(function() {});
   });
 }
 
