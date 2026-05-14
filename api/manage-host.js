@@ -2,9 +2,11 @@
  * Manage Host API - Vercel Serverless Function
  * ==============================================
  * Actions:
- *   checkEmail  - Check if email exists in Firebase Auth
- *   approveHost - Create Auth account + store in hosts collection + update application
- *   rejectHost  - Update application status to rejected + store reject reason
+ *   checkEmail        - Check if email exists in Firebase Auth
+ *   approveHost       - Create Auth account + store in hosts + hostCredentials + update application
+ *   rejectHost        - Update application status to rejected + store reject reason
+ *   getHostCredential - Get host password from hostCredentials (admin-only)
+ *   getAllCredentials - Get all host credentials (admin-only)
  */
 
 const admin = require("firebase-admin");
@@ -131,9 +133,6 @@ async function approveHost(data) {
     ffScreenshotUrl: applicationData.ffScreenshotUrl || "",
     selfieUrl: applicationData.selfieUrl || "",
 
-    // Host Account Password (admin-set, for admin panel reference)
-    password: hostPassword,
-
     // Verification Info
     status: "verified",
     verifiedBy: adminEmail,
@@ -147,7 +146,17 @@ async function approveHost(data) {
 
   await firestore.collection("hosts").doc(newUser.uid).set(hostData);
 
-  // Step 4: Update original application status to "approved"
+  // Step 4: Store password in hostCredentials collection (admin-only, separate from hosts)
+  const credentialData = {
+    hostUid: newUser.uid,
+    hostEmail: gmail,
+    password: hostPassword,
+    setBy: adminEmail,
+    setAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  await firestore.collection("hostCredentials").doc(newUser.uid).set(credentialData);
+
+  // Step 5: Update original application status to "approved"
   await firestore.collection("applications").doc(applicationId).update({
     status: "approved",
     approvedBy: adminEmail,
@@ -189,6 +198,56 @@ async function rejectHost(data) {
 }
 
 // ===================================================
+// GET HOST CREDENTIAL: Get password for a single host (admin-only)
+// ===================================================
+async function getHostCredential(hostUid) {
+  if (!hostUid) {
+    throw new Error("Missing required field: hostUid");
+  }
+
+  const doc = await firestore.collection("hostCredentials").doc(hostUid).get();
+
+  if (!doc.exists) {
+    return { exists: false, hostUid };
+  }
+
+  const data = doc.data();
+  return {
+    exists: true,
+    hostUid: data.hostUid,
+    hostEmail: data.hostEmail || "",
+    password: data.password || "",
+    setBy: data.setBy || "",
+    setAt: data.setAt && typeof data.setAt.toDate === "function" ? data.setAt.toDate().toISOString() : data.setAt || "",
+  };
+}
+
+// ===================================================
+// GET ALL CREDENTIALS: Get all host credentials (admin-only)
+// ===================================================
+async function getAllCredentials() {
+  const snapshot = await firestore.collection("hostCredentials").get();
+
+  if (snapshot.empty) {
+    return { credentials: [], count: 0 };
+  }
+
+  const credentials = [];
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    credentials.push({
+      hostUid: doc.id,
+      hostEmail: data.hostEmail || "",
+      password: data.password || "",
+      setBy: data.setBy || "",
+      setAt: data.setAt && typeof data.setAt.toDate === "function" ? data.setAt.toDate().toISOString() : data.setAt || "",
+    });
+  });
+
+  return { credentials, count: credentials.length };
+}
+
+// ===================================================
 // MAIN: Vercel Serverless Handler
 // ===================================================
 module.exports = async (req, res) => {
@@ -199,7 +258,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { action, applicationId, applicationData, adminEmail, rejectReason, hostPassword } = req.body || {};
+  const { action, applicationId, applicationData, adminEmail, rejectReason, hostPassword, hostUid } = req.body || {};
 
   try {
     let result;
@@ -220,10 +279,18 @@ module.exports = async (req, res) => {
         result = await rejectHost({ applicationId, rejectReason, adminEmail });
         break;
 
+      case "getHostCredential":
+        result = await getHostCredential(hostUid);
+        break;
+
+      case "getAllCredentials":
+        result = await getAllCredentials();
+        break;
+
       default:
         return res.status(400).json({
           error: "Unknown action",
-          validActions: ["checkEmail", "approveHost", "rejectHost"],
+          validActions: ["checkEmail", "approveHost", "rejectHost", "getHostCredential", "getAllCredentials"],
         });
     }
 

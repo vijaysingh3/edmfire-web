@@ -4,14 +4,45 @@
 
 var hostsList = document.getElementById("hostsList");
 var hostsTotalCount = document.getElementById("hostsTotalCount");
+var MANAGE_HOST_API = "/api/manage-host";
 
-// Load all verified hosts from Firestore
+// Credentials map: hostUid -> password
+var credentialsMap = {};
+
+// Load all verified hosts from Firestore + credentials via API
 function loadVerifiedHosts() {
   if (!firebase.firestore) {
     hostsList.innerHTML = '<div class="hosts-empty"><p>Firestore not available</p></div>';
     return;
   }
 
+  // Step 1: Fetch credentials from API (admin-only hostCredentials collection)
+  fetch(MANAGE_HOST_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getAllCredentials" }),
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(credData) {
+    // Build credentials map
+    credentialsMap = {};
+    if (credData.success && credData.result && credData.result.credentials) {
+      credData.result.credentials.forEach(function(cred) {
+        credentialsMap[cred.hostUid] = cred.password || "";
+      });
+    }
+    // Step 2: Now fetch hosts from Firestore
+    loadHostsFromFirestore();
+  })
+  .catch(function(error) {
+    console.error("Fetch credentials error:", error);
+    // Still load hosts without passwords
+    loadHostsFromFirestore();
+  });
+}
+
+// Load hosts from Firestore and render
+function loadHostsFromFirestore() {
   var db = firebase.firestore();
   db.collection("hosts").where("status", "==", "verified").get().then(function(snapshot) {
     if (snapshot.empty) {
@@ -41,7 +72,9 @@ function loadVerifiedHosts() {
       var verifiedBy = data.verifiedBy || "-";
       var verifiedAt = formatDate(data.verifiedAt);
       var hostUid = doc.id;
-      var password = data.password || "";
+
+      // Get password from credentials map (fetched from hostCredentials via API)
+      var password = credentialsMap[hostUid] || "";
       var maskedPw = password ? "\u2022".repeat(password.length) : "Not set";
       var hasPassword = password.length > 0;
 
@@ -61,7 +94,7 @@ function loadVerifiedHosts() {
           '<div class="host-card-details">' +
             '<div class="host-card-detail">' +
               '<span class="host-card-detail-label">Mobile</span>' +
-              '<span class="host-card-detail-value">' + escapeHtml(mobile) + '</span>' +
+              '<span class="host-card-detail-value">' + escapeHtml(String(mobile)) + '</span>' +
             '</div>' +
             '<div class="host-card-detail">' +
               '<span class="host-card-detail-label">State</span>' +
