@@ -49,10 +49,18 @@ async function checkEmail(email) {
 // APPROVE HOST: Create Auth + store in hosts + update application
 // ===================================================
 async function approveHost(data) {
-  const { applicationId, applicationData, adminEmail } = data;
+  const { applicationId, applicationData, adminEmail, hostPassword } = data;
 
   if (!applicationId || !applicationData || !adminEmail) {
     throw new Error("Missing required fields: applicationId, applicationData, adminEmail");
+  }
+
+  if (!hostPassword || hostPassword.length < 6) {
+    return {
+      success: false,
+      error: "INVALID_PASSWORD",
+      message: "Password is required and must be at least 6 characters",
+    };
   }
 
   const gmail = applicationData.gmail;
@@ -70,13 +78,12 @@ async function approveHost(data) {
     };
   }
 
-  // Step 2: Create new Auth account with a temporary random password
-  const tempPassword = "Host@" + Math.random().toString(36).substring(2, 10) + "!1";
+  // Step 2: Create new Auth account with admin-provided password
   let newUser;
   try {
     newUser = await auth.createUser({
       email: gmail,
-      password: tempPassword,
+      password: hostPassword,
       displayName: applicationData.fullName || "Host",
       emailVerified: true,
     });
@@ -123,6 +130,9 @@ async function approveHost(data) {
     whyJoin: applicationData.whyJoin || "",
     ffScreenshotUrl: applicationData.ffScreenshotUrl || "",
     selfieUrl: applicationData.selfieUrl || "",
+
+    // Host Account Password (admin-set, for admin panel reference)
+    password: hostPassword,
 
     // Verification Info
     status: "verified",
@@ -189,7 +199,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { action, applicationId, applicationData, adminEmail, rejectReason } = req.body || {};
+  const { action, applicationId, applicationData, adminEmail, rejectReason, hostPassword } = req.body || {};
 
   try {
     let result;
@@ -203,7 +213,7 @@ module.exports = async (req, res) => {
         break;
 
       case "approveHost":
-        result = await approveHost({ applicationId, applicationData, adminEmail });
+        result = await approveHost({ applicationId, applicationData, adminEmail, hostPassword });
         break;
 
       case "rejectHost":

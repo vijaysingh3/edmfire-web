@@ -11,6 +11,7 @@ var btnReject = document.getElementById("btnReject");
 
 var currentDocId = null;
 var currentData = null;
+var currentHostData = null; // Host data from hosts collection (for approved apps)
 var MANAGE_HOST_API = "/api/manage-host";
 
 // Get doc ID from URL params
@@ -27,6 +28,7 @@ function loadApplicationDetail(docId) {
   }
 
   currentDocId = docId;
+  currentHostData = null;
   var db = firebase.firestore();
 
   db.collection("applications").doc(docId).get().then(function(doc) {
@@ -36,9 +38,37 @@ function loadApplicationDetail(docId) {
     }
 
     currentData = doc.data();
-    renderDetail(currentData);
+
+    // If approved, also fetch host data from hosts collection
+    var status = (currentData.status || "pending").toLowerCase();
+    if (status === "approved" && currentData.hostUid) {
+      fetchHostData(currentData.hostUid, function(hostData) {
+        currentHostData = hostData;
+        renderDetail(currentData);
+      }, function() {
+        // If host fetch fails, still render without password
+        renderDetail(currentData);
+      });
+    } else {
+      renderDetail(currentData);
+    }
   }).catch(function(error) {
     showError("Error: " + error.message);
+  });
+}
+
+// Fetch host data from hosts collection
+function fetchHostData(hostUid, onSuccess, onError) {
+  var db = firebase.firestore();
+  db.collection("hosts").doc(hostUid).get().then(function(doc) {
+    if (doc.exists) {
+      onSuccess(doc.data());
+    } else {
+      if (onError) onError();
+    }
+  }).catch(function(error) {
+    console.error("Fetch host data error:", error);
+    if (onError) onError();
   });
 }
 
@@ -140,13 +170,31 @@ function renderDetail(data) {
 
   // === SHOW APPROVAL INFO IF APPROVED ===
   if (status === "approved") {
+    var passwordHtml = "";
+    if (currentHostData && currentHostData.password) {
+      passwordHtml =
+        '<div class="detail-field">' +
+          '<span class="detail-field-label">Host Password</span>' +
+          '<div class="detail-password-wrap">' +
+            '<span class="detail-password-masked" id="hostPasswordValue">' + escapeHtml(currentHostData.password) + '</span>' +
+            '<button class="detail-password-eye" id="detailPasswordEye" title="Show/Hide password">' +
+              '<svg class="eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+              '<svg class="eye-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' +
+            '</button>' +
+            '<button class="detail-password-copy" id="detailPasswordCopy" title="Copy password">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+    }
+
     html += buildSection("Approval Details",
       '<svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
       buildFields([
         { label: "Approved By", value: data.approvedBy },
         { label: "Approved On", value: formatDate(data.approvedAt) },
         { label: "Host Account UID", value: data.hostUid },
-      ])
+      ]) + passwordHtml
     );
   }
 
@@ -174,6 +222,69 @@ function renderDetail(data) {
   }
 
   detailContent.innerHTML = html;
+
+  // Bind password eye toggle and copy events for approved apps
+  bindPasswordEvents();
+}
+
+// Bind password visibility toggle and copy events
+function bindPasswordEvents() {
+  // Eye toggle for host password in detail view
+  var detailEye = document.getElementById("detailPasswordEye");
+  var passwordSpan = document.getElementById("hostPasswordValue");
+  if (detailEye && passwordSpan) {
+    // Start with masked password
+    var actualPassword = passwordSpan.textContent;
+    passwordSpan.textContent = "\u2022".repeat(actualPassword.length);
+    passwordSpan.setAttribute("data-password", actualPassword);
+    passwordSpan.setAttribute("data-visible", "false");
+
+    detailEye.addEventListener("click", function() {
+      var isVisible = passwordSpan.getAttribute("data-visible") === "true";
+      var eyeOpen = detailEye.querySelector(".eye-open");
+      var eyeClosed = detailEye.querySelector(".eye-closed");
+
+      if (isVisible) {
+        // Hide password
+        passwordSpan.textContent = "\u2022".repeat(actualPassword.length);
+        passwordSpan.setAttribute("data-visible", "false");
+        eyeOpen.style.display = "block";
+        eyeClosed.style.display = "none";
+      } else {
+        // Show password
+        passwordSpan.textContent = actualPassword;
+        passwordSpan.setAttribute("data-visible", "true");
+        eyeOpen.style.display = "none";
+        eyeClosed.style.display = "block";
+      }
+    });
+  }
+
+  // Copy button for host password
+  var detailCopy = document.getElementById("detailPasswordCopy");
+  if (detailCopy && passwordSpan) {
+    detailCopy.addEventListener("click", function() {
+      var pw = passwordSpan.getAttribute("data-password");
+      if (pw && navigator.clipboard) {
+        navigator.clipboard.writeText(pw).then(function() {
+          showToast("Password copied!", "success");
+          detailCopy.classList.add("copied");
+          setTimeout(function() { detailCopy.classList.remove("copied"); }, 1500);
+        }).catch(function() {
+          showToast("Failed to copy password", "error");
+        });
+      } else if (pw) {
+        // Fallback for older browsers
+        var textarea = document.createElement("textarea");
+        textarea.value = pw;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        showToast("Password copied!", "success");
+      }
+    });
+  }
 }
 
 // ===================================================
@@ -188,7 +299,7 @@ function closeDialog() {
   if (overlay) overlay.remove();
 }
 
-// Show confirmation dialog for Approve
+// Show confirmation dialog for Approve (with password input)
 function showApproveConfirm(callback) {
   closeDialog();
 
@@ -205,6 +316,17 @@ function showApproveConfirm(callback) {
     '</div>' +
     '<div class="dialog-title">Approve Application?</div>' +
     '<div class="dialog-message">This will create a new host account for <strong>' + escapeHtml(currentData.gmail || "this user") + '</strong> and store their data in the hosts collection.</div>' +
+    '<div class="dialog-password-field">' +
+      '<label class="dialog-password-label" for="hostPasswordInput">Set Host Account Password</label>' +
+      '<div class="dialog-password-input-wrap">' +
+        '<input type="password" class="dialog-password-input" id="hostPasswordInput" placeholder="Enter password (min 6 chars)" minlength="6" autocomplete="new-password">' +
+        '<button type="button" class="dialog-password-eye" id="dialogPasswordEye" title="Toggle visibility">' +
+          '<svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+          '<svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div class="dialog-password-hint" id="dialogPasswordHint"></div>' +
+    '</div>' +
     '<div class="dialog-buttons">' +
       '<button class="dialog-btn dialog-btn-cancel" id="dialogCancel">No, Go Back</button>' +
       '<button class="dialog-btn dialog-btn-confirm dialog-btn-green" id="dialogConfirm">Yes, Approve</button>' +
@@ -213,13 +335,42 @@ function showApproveConfirm(callback) {
   document.body.appendChild(overlay);
   document.body.appendChild(dialog);
 
+  var passwordInput = document.getElementById("hostPasswordInput");
+  var eyeBtn = document.getElementById("dialogPasswordEye");
+  var eyeOpen = eyeBtn.querySelector(".eye-open");
+  var eyeClosed = eyeBtn.querySelector(".eye-closed");
+  var passwordHint = document.getElementById("dialogPasswordHint");
+
+  // Toggle password visibility
+  eyeBtn.addEventListener("click", function() {
+    if (passwordInput.type === "password") {
+      passwordInput.type = "text";
+      eyeOpen.style.display = "none";
+      eyeClosed.style.display = "block";
+    } else {
+      passwordInput.type = "password";
+      eyeOpen.style.display = "block";
+      eyeClosed.style.display = "none";
+    }
+  });
+
+  passwordInput.focus();
+
   document.getElementById("dialogCancel").addEventListener("click", function() {
     closeDialog();
   });
 
   document.getElementById("dialogConfirm").addEventListener("click", function() {
+    var password = passwordInput.value.trim();
+    if (!password || password.length < 6) {
+      passwordInput.style.borderColor = "#ef4444";
+      passwordHint.textContent = "Password must be at least 6 characters";
+      passwordHint.style.color = "#ef4444";
+      passwordInput.focus();
+      return;
+    }
     closeDialog();
-    callback();
+    callback(password);
   });
 
   overlay.addEventListener("click", function() {
@@ -313,8 +464,8 @@ function showToast(message, type) {
 function handleApprove() {
   if (!currentDocId || !currentData) return;
 
-  // Step 1: Show confirmation dialog
-  showApproveConfirm(function() {
+  // Step 1: Show confirmation dialog with password input
+  showApproveConfirm(function(hostPassword) {
     // Step 2: Disable button and show loading
     btnApprove.disabled = true;
     btnReject.disabled = true;
@@ -346,7 +497,7 @@ function handleApprove() {
         return;
       }
 
-      // Step 4: Email not registered, proceed to approve
+      // Step 4: Email not registered, proceed to approve with password
       btnApprove.innerHTML = '<div class="detail-loading-spinner" style="width:16px;height:16px;border-width:2px;"></div> Creating host account...';
 
       var adminEmail = currentAdmin ? currentAdmin.email : "admin@edmfire.com";
@@ -359,6 +510,7 @@ function handleApprove() {
           applicationId: currentDocId,
           applicationData: currentData,
           adminEmail: adminEmail,
+          hostPassword: hostPassword,
         }),
       })
       .then(function(res) { return res.json(); })
@@ -367,6 +519,13 @@ function handleApprove() {
           // Check for specific error
           if (data.result.error === "EMAIL_ALREADY_REGISTERED") {
             showToast("This email is already registered in Auth!", "error");
+            btnApprove.disabled = false;
+            btnReject.disabled = false;
+            btnApprove.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Approve';
+            return;
+          }
+          if (data.result.error === "INVALID_PASSWORD") {
+            showToast(data.result.message || "Invalid password", "error");
             btnApprove.disabled = false;
             btnReject.disabled = false;
             btnApprove.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Approve';

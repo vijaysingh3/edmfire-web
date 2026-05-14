@@ -349,3 +349,97 @@
   .detail-images { grid-template-columns: 1fr; }
   .detail-header { flex-wrap: wrap; }
 }
+
+/* ========== Dialog Password Input ========== */
+.dialog-password-field {
+  margin-bottom: 20px; text-align: left;
+}
+
+.dialog-password-label {
+  display: block; font-size: 12px; font-weight: 600; color: #7c7f96;
+  text-transform: uppercase; letter-spacing: 0.3px;
+  margin-bottom: 8px;
+}
+
+.dialog-password-input-wrap {
+  position: relative; display: flex; align-items: center;
+}
+
+.dialog-password-input {
+  width: 100%; padding: 12px 46px 12px 14px; border-radius: 10px;
+  background: #0f1117; border: 1px solid #2a2d42;
+  color: #e8e9f0; font-size: 14px; font-family: 'Poppins', sans-serif;
+  outline: none; transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.dialog-password-input:focus {
+  border-color: #7c6cf0;
+}
+
+.dialog-password-input::placeholder {
+  color: #3a3d52;
+}
+
+.dialog-password-eye {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #5a5d72; cursor: pointer;
+  padding: 4px; display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s;
+}
+
+.dialog-password-eye:hover {
+  color: #7c6cf0;
+}
+
+.dialog-password-hint {
+  font-size: 11px; margin-top: 4px; min-height: 16px;
+  color: #5a5d72;
+}
+
+/* ========== Detail Password Display (Eye + Copy) ========== */
+.detail-password-wrap {
+  display: flex; align-items: center; gap: 6px; margin-top: 2px;
+}
+
+.detail-password-masked {
+  font-size: 14px; color: #e8e9f0; font-weight: 500;
+  font-family: 'Poppins', monospace;
+  letter-spacing: 1px; user-select: none;
+}
+
+.detail-password-eye {
+  background: rgba(124, 108, 240, 0.1); border: 1px solid rgba(124, 108, 240, 0.2);
+  color: #7c6cf0; border-radius: 8px; padding: 6px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+
+.detail-password-eye:hover {
+  background: rgba(124, 108, 240, 0.2);
+  border-color: rgba(124, 108, 240, 0.4);
+}
+
+.detail-password-copy {
+  background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #10b981; border-radius: 8px; padding: 6px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+
+.detail-password-copy:hover {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.detail-password-copy.copied {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: #10b981;
+  animation: copyPulse 0.3s ease;
+}
+
+@keyframes copyPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
