@@ -1,5 +1,6 @@
 // ============================================
 // EDMFire Admin - Withdrawal Requests Logic
+// Console debug logging enabled
 // ============================================
 
 var wdList = document.getElementById("wdList");
@@ -15,19 +16,32 @@ var searchQuery = "";
 var processingItems = {};
 var searchTimeout = null;
 
+console.log("[WD-INIT] Script loaded. DOM elements ready:", {
+  wdList: !!wdList,
+  wdSearchInput: !!wdSearchInput,
+  wdSearchClear: !!wdSearchClear,
+  wdResultsCount: !!wdResultsCount
+});
+
 // ============ LOAD WITHDRAWAL REQUESTS ============
 function loadWithdrawals() {
+  console.log("[WD-LOAD] loadWithdrawals() called");
+
   if (!firebase.firestore) {
+    console.error("[WD-LOAD] ERROR: firebase.firestore is not available!");
     wdList.innerHTML = '<div class="wd-empty"><p>Firestore not available</p></div>';
     return;
   }
 
   var db = firebase.firestore();
+  console.log("[WD-LOAD] Firestore instance created");
 
   // Real-time listener on WithdrawalRequests
+  console.log("[WD-LOAD] Setting up onSnapshot listener on WithdrawalRequests...");
   db.collection("WithdrawalRequests")
     .orderBy("createdAt", "desc")
     .onSnapshot(function(snapshot) {
+      console.log("[WD-LOAD] onSnapshot fired. Docs count:", snapshot.size);
       allWithdrawals = [];
       var counts = { pending: 0, completed: 0, refunded: 0, rejected: 0 };
 
@@ -39,6 +53,8 @@ function loadWithdrawals() {
         var status = (w.status || "pending").toLowerCase();
         if (counts[status] !== undefined) counts[status]++;
       });
+
+      console.log("[WD-LOAD] Parsed withdrawals:", allWithdrawals.length, "Counts:", JSON.stringify(counts));
 
       // Update stats
       updateStats(counts, allWithdrawals.length);
@@ -54,13 +70,9 @@ function loadWithdrawals() {
         }
       }
 
-      // Update dashboard badge if exists
-      var dashBadge = parent.document
-        ? null : null; // Will be handled by dashboard script
-
       applyFilterAndSearch();
     }, function(error) {
-      console.error("Withdrawal listener error:", error);
+      console.error("[WD-LOAD] onSnapshot ERROR:", error);
       wdList.innerHTML =
         '<div class="wd-empty">' +
           '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
@@ -150,6 +162,7 @@ function getPaymentMethod(bankAddress) {
 
 // ============ UPDATE STATS ============
 function updateStats(counts, total) {
+  console.log("[WD-STATS] Updating stats - Total:", total, "Counts:", JSON.stringify(counts));
   document.getElementById("wdTotalCount").textContent = total;
   document.getElementById("wdPendingCount").textContent = counts.pending;
   document.getElementById("wdCompletedCount").textContent = counts.completed;
@@ -159,6 +172,7 @@ function updateStats(counts, total) {
 
 // ============ FILTER + SEARCH ============
 function applyFilterAndSearch() {
+  console.log("[WD-FILTER] applyFilterAndSearch() - filter:", currentFilter, "search:", searchQuery);
   filteredWithdrawals = allWithdrawals.filter(function(w) {
     // Filter by status
     if (currentFilter !== "all" && w.status.toLowerCase() !== currentFilter) {
@@ -175,7 +189,7 @@ function applyFilterAndSearch() {
     return true;
   });
 
-  // Update results count
+  console.log("[WD-FILTER] Filtered results:", filteredWithdrawals.length);
   updateResultsCount();
   renderWithdrawalCards();
 }
@@ -199,6 +213,8 @@ function updateResultsCount() {
 
 // ============ RENDER CARDS ============
 function renderWithdrawalCards() {
+  console.log("[WD-RENDER] renderWithdrawalCards() - count:", filteredWithdrawals.length);
+
   if (filteredWithdrawals.length === 0) {
     var emptyMsg = searchQuery ? "No results found" : "No " + currentFilter + " requests";
     wdList.innerHTML =
@@ -273,6 +289,7 @@ function renderWithdrawalCards() {
   });
 
   wdList.innerHTML = html;
+  console.log("[WD-RENDER] Cards rendered. Binding events...");
   bindCardEvents();
 }
 
@@ -280,9 +297,11 @@ function renderWithdrawalCards() {
 function bindCardEvents() {
   // Copy buttons
   var copyBtns = document.querySelectorAll(".wd-card-copy-btn");
+  console.log("[WD-BIND] Copy buttons found:", copyBtns.length);
   copyBtns.forEach(function(btn) {
     btn.addEventListener("click", function() {
       var text = btn.getAttribute("data-copy");
+      console.log("[WD-COPY] Copy clicked:", text);
       if (text && navigator.clipboard) {
         navigator.clipboard.writeText(text).then(function() {
           btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied';
@@ -306,28 +325,50 @@ function bindCardEvents() {
 
   // Action buttons
   var actionBtns = document.querySelectorAll(".wd-btn[data-action]");
+  console.log("[WD-BIND] Action buttons found:", actionBtns.length);
   actionBtns.forEach(function(btn) {
-    btn.addEventListener("click", function() {
+    btn.addEventListener("click", function(e) {
       var action = btn.getAttribute("data-action");
       var tid = btn.getAttribute("data-tid");
+      console.log("[WD-ACTION] Button clicked - action:", action, "tid:", tid);
       var w = findWithdrawal(tid);
-      if (!w) return;
+      if (!w) {
+        console.error("[WD-ACTION] Withdrawal not found for tid:", tid);
+        return;
+      }
 
-      if (action === "complete") showCompleteDialog(w);
-      else if (action === "refund") showRefundDialog(w);
-      else if (action === "reject") showRejectDialog(w);
+      if (action === "complete") {
+        console.log("[WD-ACTION] Opening Complete dialog for:", w.userName);
+        showCompleteDialog(w);
+      }
+      else if (action === "refund") {
+        console.log("[WD-ACTION] Opening Refund dialog for:", w.userName);
+        showRefundDialog(w);
+      }
+      else if (action === "reject") {
+        console.log("[WD-ACTION] Opening Reject dialog for:", w.userName);
+        showRejectDialog(w);
+      }
     });
   });
 
   // View details buttons
   var viewBtns = document.querySelectorAll(".wd-card-view-btn");
+  console.log("[WD-BIND] View buttons found:", viewBtns.length);
   viewBtns.forEach(function(btn) {
     btn.addEventListener("click", function() {
       var tid = btn.getAttribute("data-tid");
+      console.log("[WD-VIEW] View Details clicked for tid:", tid);
       var w = findWithdrawal(tid);
-      if (w) showDetailsDialog(w);
+      if (w) {
+        showDetailsDialog(w);
+      } else {
+        console.error("[WD-VIEW] Withdrawal not found for tid:", tid);
+      }
     });
   });
+
+  console.log("[WD-BIND] All card events bound successfully");
 }
 
 // ============ FIND WITHDRAWAL ============
@@ -342,6 +383,7 @@ function findWithdrawal(transactionId) {
 
 // ============ DIALOG SYSTEM ============
 function closeDialog() {
+  console.log("[WD-DIALOG] closeDialog() called");
   var existing = document.getElementById("appDialog");
   if (existing) existing.remove();
   var overlay = document.getElementById("dialogOverlay");
@@ -349,6 +391,7 @@ function closeDialog() {
 }
 
 function createDialog(iconHtml, iconClass, title, message, content, buttons) {
+  console.log("[WD-DIALOG] createDialog() - title:", title);
   closeDialog();
 
   var overlay = document.createElement("div");
@@ -374,12 +417,21 @@ function createDialog(iconHtml, iconClass, title, message, content, buttons) {
   document.body.appendChild(overlay);
   document.body.appendChild(dialog);
 
-  overlay.addEventListener("click", closeDialog);
+  console.log("[WD-DIALOG] Dialog DOM created. Overlay z-index:", 
+    window.getComputedStyle(overlay).zIndex,
+    "Dialog z-index:", window.getComputedStyle(dialog).zIndex
+  );
+
+  overlay.addEventListener("click", function() {
+    console.log("[WD-DIALOG] Overlay clicked - closing dialog");
+    closeDialog();
+  });
   return dialog;
 }
 
 // ============ VIEW DETAILS DIALOG ============
 function showDetailsDialog(w) {
+  console.log("[WD-DETAILS] showDetailsDialog() for:", w.transactionId);
   var amountDisplay = formatAmount(w.amount);
   var paymentMethod = getPaymentMethod(w.bankAddress);
   var wBefore = formatAmount(w.userData.winningCoinsBefore);
@@ -425,7 +477,10 @@ function showDetailsDialog(w) {
     '<button class="dialog-btn dialog-btn-cancel" id="dialogCancel">Close</button>'
   );
 
-  document.getElementById("dialogCancel").addEventListener("click", closeDialog);
+  var cancelBtn = document.getElementById("dialogCancel");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", closeDialog);
+  }
 }
 
 function detailRow(label, value) {
@@ -434,6 +489,7 @@ function detailRow(label, value) {
 
 // ============ COMPLETE DIALOG ============
 function showCompleteDialog(w) {
+  console.log("[WD-COMPLETE] showCompleteDialog() for:", w.transactionId, "amount:", w.amount);
   var amountDisplay = formatAmount(w.amount);
 
   var content =
@@ -458,31 +514,52 @@ function showCompleteDialog(w) {
     '<button class="dialog-btn dialog-btn-confirm dialog-btn-green" id="dialogConfirm">Complete</button>'
   );
 
-  document.getElementById("dialogCancel").addEventListener("click", closeDialog);
-  document.getElementById("dialogConfirm").addEventListener("click", function() {
-    var utr = document.getElementById("dialogUtrInput").value.trim();
-    var notes = document.getElementById("dialogNotesInput").value.trim();
-    var valid = true;
+  var cancelBtn = document.getElementById("dialogCancel");
+  var confirmBtn = document.getElementById("dialogConfirm");
+  console.log("[WD-COMPLETE] Dialog buttons bound - Cancel:", !!cancelBtn, "Confirm:", !!confirmBtn);
 
-    if (!utr) {
-      document.getElementById("dialogUtrHint").style.display = "block";
-      document.getElementById("dialogUtrInput").style.borderColor = "#ef4444";
-      valid = false;
-    }
-    if (!notes) {
-      document.getElementById("dialogNotesHint").style.display = "block";
-      document.getElementById("dialogNotesInput").style.borderColor = "#ef4444";
-      valid = false;
-    }
-    if (!valid) return;
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", function() {
+      console.log("[WD-COMPLETE] Cancel clicked");
+      closeDialog();
+    });
+  }
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", function() {
+      console.log("[WD-COMPLETE] Confirm clicked");
+      var utr = document.getElementById("dialogUtrInput");
+      var notes = document.getElementById("dialogNotesInput");
+      var utrVal = utr ? utr.value.trim() : "";
+      var notesVal = notes ? notes.value.trim() : "";
+      var valid = true;
 
-    closeDialog();
-    processAction("completeWithdrawal", w, { utrNumber: utr, notes: notes });
-  });
+      if (!utrVal) {
+        var utrHint = document.getElementById("dialogUtrHint");
+        if (utrHint) utrHint.style.display = "block";
+        if (utr) utr.style.borderColor = "#ef4444";
+        valid = false;
+      }
+      if (!notesVal) {
+        var notesHint = document.getElementById("dialogNotesHint");
+        if (notesHint) notesHint.style.display = "block";
+        if (notes) notes.style.borderColor = "#ef4444";
+        valid = false;
+      }
+      if (!valid) {
+        console.log("[WD-COMPLETE] Validation failed - UTR:", !!utrVal, "Notes:", !!notesVal);
+        return;
+      }
+
+      console.log("[WD-COMPLETE] Validation passed. Calling processAction...");
+      closeDialog();
+      processAction("completeWithdrawal", w, { utrNumber: utrVal, notes: notesVal });
+    });
+  }
 }
 
 // ============ REFUND DIALOG ============
 function showRefundDialog(w) {
+  console.log("[WD-REFUND] showRefundDialog() for:", w.transactionId, "amount:", w.amount);
   var amountDisplay = formatAmount(w.amount);
 
   var content =
@@ -502,21 +579,38 @@ function showRefundDialog(w) {
     '<button class="dialog-btn dialog-btn-confirm dialog-btn-orange" id="dialogConfirm">Refund</button>'
   );
 
-  document.getElementById("dialogCancel").addEventListener("click", closeDialog);
-  document.getElementById("dialogConfirm").addEventListener("click", function() {
-    var notes = document.getElementById("dialogNotesInput").value.trim();
-    if (!notes) {
-      document.getElementById("dialogNotesHint").style.display = "block";
-      document.getElementById("dialogNotesInput").style.borderColor = "#ef4444";
-      return;
-    }
-    closeDialog();
-    processAction("refundWithdrawal", w, { notes: notes });
-  });
+  var cancelBtn = document.getElementById("dialogCancel");
+  var confirmBtn = document.getElementById("dialogConfirm");
+  console.log("[WD-REFUND] Dialog buttons bound - Cancel:", !!cancelBtn, "Confirm:", !!confirmBtn);
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", function() {
+      console.log("[WD-REFUND] Cancel clicked");
+      closeDialog();
+    });
+  }
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", function() {
+      console.log("[WD-REFUND] Confirm clicked");
+      var notes = document.getElementById("dialogNotesInput");
+      var notesVal = notes ? notes.value.trim() : "";
+      if (!notesVal) {
+        var notesHint = document.getElementById("dialogNotesHint");
+        if (notesHint) notesHint.style.display = "block";
+        if (notes) notes.style.borderColor = "#ef4444";
+        console.log("[WD-REFUND] Validation failed - empty notes");
+        return;
+      }
+      console.log("[WD-REFUND] Validation passed. Calling processAction...");
+      closeDialog();
+      processAction("refundWithdrawal", w, { notes: notesVal });
+    });
+  }
 }
 
 // ============ REJECT DIALOG ============
 function showRejectDialog(w) {
+  console.log("[WD-REJECT] showRejectDialog() for:", w.transactionId, "amount:", w.amount);
   var amountDisplay = formatAmount(w.amount);
 
   var content =
@@ -536,22 +630,40 @@ function showRejectDialog(w) {
     '<button class="dialog-btn dialog-btn-confirm dialog-btn-red" id="dialogConfirm">Reject</button>'
   );
 
-  document.getElementById("dialogCancel").addEventListener("click", closeDialog);
-  document.getElementById("dialogConfirm").addEventListener("click", function() {
-    var notes = document.getElementById("dialogNotesInput").value.trim();
-    if (!notes) {
-      document.getElementById("dialogNotesHint").style.display = "block";
-      document.getElementById("dialogNotesInput").style.borderColor = "#ef4444";
-      return;
-    }
-    closeDialog();
-    processAction("rejectWithdrawal", w, { notes: notes });
-  });
+  var cancelBtn = document.getElementById("dialogCancel");
+  var confirmBtn = document.getElementById("dialogConfirm");
+  console.log("[WD-REJECT] Dialog buttons bound - Cancel:", !!cancelBtn, "Confirm:", !!confirmBtn);
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", function() {
+      console.log("[WD-REJECT] Cancel clicked");
+      closeDialog();
+    });
+  }
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", function() {
+      console.log("[WD-REJECT] Confirm clicked");
+      var notes = document.getElementById("dialogNotesInput");
+      var notesVal = notes ? notes.value.trim() : "";
+      if (!notesVal) {
+        var notesHint = document.getElementById("dialogNotesHint");
+        if (notesHint) notesHint.style.display = "block";
+        if (notes) notes.style.borderColor = "#ef4444";
+        console.log("[WD-REJECT] Validation failed - empty notes");
+        return;
+      }
+      console.log("[WD-REJECT] Validation passed. Calling processAction...");
+      closeDialog();
+      processAction("rejectWithdrawal", w, { notes: notesVal });
+    });
+  }
 }
 
 // ============ PROCESS ACTION (API CALL) ============
 function processAction(action, w, extra) {
   var tid = w.transactionId;
+  console.log("[WD-PROCESS] processAction() - action:", action, "tid:", tid, "userId:", w.userId, "amount:", w.amount);
+
   processingItems[tid] = 0;
   renderWithdrawalCards();
 
@@ -571,13 +683,19 @@ function processAction(action, w, extra) {
   if (extra.utrNumber) body.utrNumber = extra.utrNumber;
   if (extra.notes) body.notes = extra.notes;
 
+  console.log("[WD-PROCESS] Sending API request to:", MANAGE_WITHDRAWAL_API, "Body:", JSON.stringify(body));
+
   fetch(MANAGE_WITHDRAWAL_API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
-  .then(function(res) { return res.json(); })
+  .then(function(res) {
+    console.log("[WD-PROCESS] API response status:", res.status);
+    return res.json();
+  })
   .then(function(data) {
+    console.log("[WD-PROCESS] API response data:", JSON.stringify(data));
     delete processingItems[tid];
     renderWithdrawalCards();
 
@@ -593,10 +711,12 @@ function processAction(action, w, extra) {
       var errMsg = "Action failed";
       if (data.result && data.result.message) errMsg = data.result.message;
       else if (data.error) errMsg = data.error;
+      console.error("[WD-PROCESS] Action failed:", errMsg);
       showToast(errMsg, "error");
     }
   })
   .catch(function(error) {
+    console.error("[WD-PROCESS] Fetch error:", error.message);
     delete processingItems[tid];
     renderWithdrawalCards();
     showToast("Error: " + error.message, "error");
@@ -633,12 +753,14 @@ wdSearchInput.addEventListener("input", function() {
 
   if (searchTimeout) clearTimeout(searchTimeout);
   searchTimeout = setTimeout(function() {
+    console.log("[WD-SEARCH] Search query changed:", val);
     searchQuery = val;
     applyFilterAndSearch();
   }, 300);
 });
 
 wdSearchClear.addEventListener("click", function() {
+  console.log("[WD-SEARCH] Search cleared");
   wdSearchInput.value = "";
   wdSearchClear.style.display = "none";
   searchQuery = "";
@@ -647,17 +769,20 @@ wdSearchClear.addEventListener("click", function() {
 
 // ============ FILTER TABS ============
 var filterTabs = document.querySelectorAll(".wd-filter-tab");
+console.log("[WD-FILTER] Filter tabs found:", filterTabs.length);
 filterTabs.forEach(function(tab) {
   tab.addEventListener("click", function() {
     filterTabs.forEach(function(t) { t.classList.remove("active"); });
     tab.classList.add("active");
     currentFilter = tab.getAttribute("data-filter");
+    console.log("[WD-FILTER] Filter changed to:", currentFilter);
     applyFilterAndSearch();
   });
 });
 
 // ============ TOAST ============
 function showToast(message, type) {
+  console.log("[WD-TOAST]", type || "info", ":", message);
   var existing = document.getElementById("appToast");
   if (existing) existing.remove();
 
@@ -705,7 +830,11 @@ function escapeHtml(str) {
 }
 
 // ============ INIT ============
+console.log("[WD-INIT] Starting initAuthGuard...");
 initAuthGuard(function(user) {
+  console.log("[WD-INIT] Auth guard passed. User:", user ? user.email : "null");
+  console.log("[WD-INIT] Firebase services check - auth:", !!firebase.auth, "firestore:", !!firebase.firestore, "database:", !!firebase.database, "storage:", !!firebase.storage);
   loadWithdrawals();
 });
 initCommonUI();
+console.log("[WD-INIT] initCommonUI() called. Setup complete.");
