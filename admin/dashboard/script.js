@@ -7,6 +7,7 @@ var statActiveChats = document.getElementById("statActiveChats");
 var statUnreadMsg = document.getElementById("statUnreadMsg");
 var statNotifications = document.getElementById("statNotifications");
 var statHostApps = document.getElementById("statHostApps");
+var statWithdrawals = document.getElementById("statWithdrawals");
 var activityList = document.getElementById("activityList");
 var navChatBadge = document.getElementById("navChatBadge");
 
@@ -44,6 +45,9 @@ function loadDashboardStats() {
 
   // Load host applications count from Firestore
   loadHostAppsCount();
+
+  // Load withdrawal requests count from Firestore
+  loadWithdrawalCount();
 }
 
 function loadHostAppsCount() {
@@ -58,6 +62,17 @@ function loadHostAppsCount() {
     db.collection("applications").get().then(function(snapshot) {
       if (statHostApps) statHostApps.textContent = snapshot.size;
     }).catch(function() {});
+  });
+}
+
+function loadWithdrawalCount() {
+  if (!firebase.firestore) return;
+  var db = firebase.firestore();
+  db.collection("WithdrawalRequests").where("status", "==", "pending").get().then(function(snapshot) {
+    var count = snapshot.size;
+    if (statWithdrawals) statWithdrawals.textContent = count;
+  }).catch(function(err) {
+    console.error("Withdrawal count error:", err);
   });
 }
 
