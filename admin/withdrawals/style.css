@@ -462,8 +462,6 @@
   max-height: 90vh;
   overflow-y: auto;
   animation: dialogIn 0.2s ease;
-  z-index: 1001;
-  position: relative;
 }
 
 @keyframes dialogIn {

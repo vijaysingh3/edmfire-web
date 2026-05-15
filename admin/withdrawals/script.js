@@ -384,8 +384,6 @@ function findWithdrawal(transactionId) {
 // ============ DIALOG SYSTEM ============
 function closeDialog() {
   console.log("[WD-DIALOG] closeDialog() called");
-  var existing = document.getElementById("appDialog");
-  if (existing) existing.remove();
   var overlay = document.getElementById("dialogOverlay");
   if (overlay) overlay.remove();
 }
@@ -414,17 +412,19 @@ function createDialog(iconHtml, iconClass, title, message, content, buttons) {
   html += '<div class="dialog-buttons">' + buttons + '</div>';
 
   dialog.innerHTML = html;
+
+  // Dialog INSIDE overlay so flex centering works
+  overlay.appendChild(dialog);
   document.body.appendChild(overlay);
-  document.body.appendChild(dialog);
 
-  console.log("[WD-DIALOG] Dialog DOM created. Overlay z-index:", 
-    window.getComputedStyle(overlay).zIndex,
-    "Dialog z-index:", window.getComputedStyle(dialog).zIndex
-  );
+  console.log("[WD-DIALOG] Dialog created INSIDE overlay. Visible:", dialog.offsetParent !== null, "Rect:", JSON.stringify(dialog.getBoundingClientRect()));
 
-  overlay.addEventListener("click", function() {
-    console.log("[WD-DIALOG] Overlay clicked - closing dialog");
-    closeDialog();
+  // Close on overlay background click (not on dialog itself)
+  overlay.addEventListener("click", function(e) {
+    if (e.target === overlay) {
+      console.log("[WD-DIALOG] Overlay background clicked - closing dialog");
+      closeDialog();
+    }
   });
   return dialog;
 }
@@ -494,12 +494,12 @@ function showCompleteDialog(w) {
 
   var content =
     '<div class="dialog-field">' +
-      '<label class="dialog-field-label">UTR Number *</label>' +
+      '<label class="dialog-field-label" for="dialogUtrInput">UTR Number *</label>' +
       '<input type="text" class="dialog-field-input" id="dialogUtrInput" placeholder="Enter UTR number">' +
       '<div class="dialog-field-hint" id="dialogUtrHint">UTR Number is required</div>' +
     '</div>' +
     '<div class="dialog-field">' +
-      '<label class="dialog-field-label">Notes *</label>' +
+      '<label class="dialog-field-label" for="dialogNotesInput">Notes *</label>' +
       '<textarea class="dialog-field-input" id="dialogNotesInput" placeholder="Enter notes (e.g. Payment sent via UPI)"></textarea>' +
       '<div class="dialog-field-hint" id="dialogNotesHint">Notes are required</div>' +
     '</div>';
@@ -564,7 +564,7 @@ function showRefundDialog(w) {
 
   var content =
     '<div class="dialog-field">' +
-      '<label class="dialog-field-label">Reason for Refund *</label>' +
+      '<label class="dialog-field-label" for="dialogNotesInput">Reason for Refund *</label>' +
       '<textarea class="dialog-field-input" id="dialogNotesInput" placeholder="Enter refund reason (e.g. Payment failed, wrong UPI)"></textarea>' +
       '<div class="dialog-field-hint" id="dialogNotesHint">Reason is required</div>' +
     '</div>';
@@ -615,7 +615,7 @@ function showRejectDialog(w) {
 
   var content =
     '<div class="dialog-field">' +
-      '<label class="dialog-field-label">Reason for Rejection *</label>' +
+      '<label class="dialog-field-label" for="dialogNotesInput">Reason for Rejection *</label>' +
       '<textarea class="dialog-field-input" id="dialogNotesInput" placeholder="Enter rejection reason (e.g. Invalid details, suspicious activity)"></textarea>' +
       '<div class="dialog-field-hint" id="dialogNotesHint">Reason is required</div>' +
     '</div>';
