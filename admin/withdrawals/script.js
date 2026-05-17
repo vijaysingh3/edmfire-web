@@ -499,9 +499,8 @@ function showCompleteDialog(w) {
       '<div class="dialog-field-hint" id="dialogUtrHint">UTR Number is required</div>' +
     '</div>' +
     '<div class="dialog-field">' +
-      '<label class="dialog-field-label" for="dialogNotesInput">Notes *</label>' +
-      '<textarea class="dialog-field-input" id="dialogNotesInput" placeholder="Enter notes (e.g. Payment sent via UPI)"></textarea>' +
-      '<div class="dialog-field-hint" id="dialogNotesHint">Notes are required</div>' +
+      '<label class="dialog-field-label" for="dialogNotesInput">Description (optional)</label>' +
+      '<textarea class="dialog-field-input" id="dialogNotesInput" placeholder="Optional - auto-filled with timestamp if left empty"></textarea>' +
     '</div>';
 
   createDialog(
@@ -531,23 +530,26 @@ function showCompleteDialog(w) {
       var notes = document.getElementById("dialogNotesInput");
       var utrVal = utr ? utr.value.trim() : "";
       var notesVal = notes ? notes.value.trim() : "";
-      var valid = true;
 
+      // Only UTR is required
       if (!utrVal) {
         var utrHint = document.getElementById("dialogUtrHint");
         if (utrHint) utrHint.style.display = "block";
         if (utr) utr.style.borderColor = "#ef4444";
-        valid = false;
-      }
-      if (!notesVal) {
-        var notesHint = document.getElementById("dialogNotesHint");
-        if (notesHint) notesHint.style.display = "block";
-        if (notes) notes.style.borderColor = "#ef4444";
-        valid = false;
-      }
-      if (!valid) {
-        console.log("[WD-COMPLETE] Validation failed - UTR:", !!utrVal, "Notes:", !!notesVal);
+        console.log("[WD-COMPLETE] Validation failed - empty UTR");
         return;
+      }
+
+      // If notes empty, auto-fill with current timestamp
+      if (!notesVal) {
+        var now = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var h = now.getHours();
+        var m = now.getMinutes();
+        var ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12 || 12;
+        notesVal = "Completed on " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear() + " at " + h + ":" + (m < 10 ? "0" : "") + m + " " + ampm;
+        console.log("[WD-COMPLETE] Notes empty, auto-filled with timestamp:", notesVal);
       }
 
       console.log("[WD-COMPLETE] Validation passed. Calling processAction...");
