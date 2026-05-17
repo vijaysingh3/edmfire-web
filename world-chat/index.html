@@ -95,5 +95,18 @@
   <script src="../firebase/auth.js"></script>
   <script src="world-chat.js"></script>
 
+  <!-- Service Worker Registration — cache for fast loading -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/world-chat/sw.js').then(function(reg) {
+          console.log('[WC-SW] Service Worker registered, scope:', reg.scope);
+        }).catch(function(err) {
+          console.log('[WC-SW] Service Worker registration failed:', err);
+        });
+      });
+    }
+  </script>
+
 </body>
 </html>

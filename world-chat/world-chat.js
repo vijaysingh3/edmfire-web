@@ -89,11 +89,18 @@ function getChatRef() {
 }
 
 // ============ ANDROID WEBVIEW AUTH ============
-window.receiveAuthToken = async function(idToken) {
-  console.log("[WC-AUTH] receiveAuthToken called from Android");
+// Android se idToken + username dono aate hain
+window.receiveAuthToken = async function(idToken, username) {
+  console.log("[WC-AUTH] receiveAuthToken called from Android, username:", username);
   if (isAuthenticating || currentUser) return;
   isAuthenticating = true;
   setStatus("Authenticating...", "");
+
+  // Username Android se aaya hai — directly store karo
+  if (username && username.length > 0) {
+    currentUsername = username;
+    console.log("[WC-AUTH] Username from Android:", currentUsername);
+  }
 
   try {
     var customToken = await exchangeIdTokenForCustomToken(idToken);
@@ -102,7 +109,7 @@ window.receiveAuthToken = async function(idToken) {
       if (result && result.user) {
         currentUser = result.user;
         verifiedUid = result.user.uid;
-        console.log("[WC-AUTH] Auth success, uid:", verifiedUid);
+        console.log("[WC-AUTH] Auth success, uid:", verifiedUid, "username:", currentUsername);
         setStatus("Online", "online");
         await fetchUsernameAndStartChat();
         return;
@@ -158,6 +165,15 @@ async function initApp() {
 async function fetchUsernameAndStartChat() {
   if (!verifiedUid) return;
 
+  // Agar Android se username aa chuka hai toh Firestore fetch mat karo (fast loading)
+  if (currentUsername && currentUsername.length > 0 && !currentUsername.startsWith("User_")) {
+    console.log("[WC-INIT] Username already from Android:", currentUsername, "— skipping Firestore fetch");
+    if (bottomBar) bottomBar.style.display = "flex";
+    initRoomSystem();
+    return;
+  }
+
+  // Fallback: Firestore se username fetch karo (agar Android se nahi aaya)
   try {
     var db = firebase.firestore();
     var userDoc = await db.collection("Users").doc(verifiedUid).get();
@@ -167,10 +183,10 @@ async function fetchUsernameAndStartChat() {
     } else {
       currentUsername = "User_" + verifiedUid.substring(0, 6);
     }
-    console.log("[WC-INIT] Username resolved:", currentUsername);
+    console.log("[WC-INIT] Username from Firestore:", currentUsername);
   } catch (error) {
     console.error("[WC-INIT] Firestore username fetch error:", error);
-    currentUsername = "User_" + verifiedUid.substring(0, 6);
+    if (!currentUsername) currentUsername = "User_" + verifiedUid.substring(0, 6);
   }
 
   if (bottomBar) bottomBar.style.display = "flex";
