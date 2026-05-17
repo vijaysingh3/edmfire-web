@@ -43,9 +43,12 @@ var allMessagesData = {};
 var activeRoomId = null;
 var chatListenerRef = null;
 var metaListenerRef = null;
-var COOLDOWN_MS = 5000; // 5 second cooldown
+var ADMIN_UID = "UWSPOJ48pnXHAbizdNIHHaMWsRm2";
+var COOLDOWN_MS = 30000; // 30 second cooldown for normal users
+var ADMIN_COOLDOWN_MS = 0; // Admin ke liye koi cooldown nahi
 var lastSendTime = 0;
 var cooldownTimer = null;
+var isAdminUser = false;
 var replyingTo = null; // { key, text, username }
 var ROOM_CHECK_INTERVAL = 60000; // Check meta every 60 seconds
 var roomCheckTimer = null;
@@ -109,7 +112,8 @@ window.receiveAuthToken = async function(idToken, username) {
       if (result && result.user) {
         currentUser = result.user;
         verifiedUid = result.user.uid;
-        console.log("[WC-AUTH] Auth success, uid:", verifiedUid, "username:", currentUsername);
+        isAdminUser = (verifiedUid === ADMIN_UID);
+        console.log("[WC-AUTH] Auth success, uid:", verifiedUid, "isAdmin:", isAdminUser, "username:", currentUsername);
         setStatus("Online", "online");
         await fetchUsernameAndStartChat();
         return;
@@ -152,7 +156,8 @@ async function initApp() {
     if (user && !currentUser) {
       currentUser = user;
       verifiedUid = user.uid;
-      console.log("[WC-INIT] onAuthChange: uid:", verifiedUid);
+      isAdminUser = (verifiedUid === ADMIN_UID);
+      console.log("[WC-INIT] onAuthChange: uid:", verifiedUid, "isAdmin:", isAdminUser);
       setStatus("Online", "online");
       fetchUsernameAndStartChat();
     } else if (!currentUser) {
@@ -347,8 +352,15 @@ function appendMessage(msgKey, msg) {
   }
 
   var isOwn = msg.uid === verifiedUid;
+  var isMsgAdmin = (msg.uid === ADMIN_UID);
   var div = document.createElement("div");
-  div.className = "message " + (isOwn ? "own" : "other");
+
+  // Admin messages get special class
+  if (isMsgAdmin) {
+    div.className = "message admin-msg";
+  } else {
+    div.className = "message " + (isOwn ? "own" : "other");
+  }
   div.setAttribute("data-key", msgKey);
   div.setAttribute("data-uid", msg.uid || "");
 
@@ -359,8 +371,13 @@ function appendMessage(msgKey, msg) {
     content += '<div class="msg-reply-preview">' + escapeHtml(msg.replyTo) + '</div>';
   }
 
-  // Username
-  if (isOwn) {
+  // Username + Admin badge
+  if (isMsgAdmin) {
+    content += '<div class="msg-username admin-name">';
+    content += escapeHtml(msg.username || "Admin");
+    content += ' <span class="admin-badge">ADMIN</span>';
+    content += '</div>';
+  } else if (isOwn) {
     content += '<div class="msg-username">You</div>';
   } else {
     content += '<div class="msg-username">' + escapeHtml(msg.username || "Unknown") + '</div>';
@@ -422,11 +439,12 @@ async function sendTextMessage() {
     return;
   }
 
-  // Cooldown check
+  // Cooldown check — admin ke liye koi limit nahi
   var now = Date.now();
   var timeSinceLastSend = now - lastSendTime;
-  if (timeSinceLastSend < COOLDOWN_MS) {
-    startCooldown(COOLDOWN_MS - timeSinceLastSend);
+  var cooldownLimit = isAdminUser ? ADMIN_COOLDOWN_MS : COOLDOWN_MS;
+  if (cooldownLimit > 0 && timeSinceLastSend < cooldownLimit) {
+    startCooldown(cooldownLimit - timeSinceLastSend);
     return;
   }
 
@@ -467,10 +485,13 @@ async function sendTextMessage() {
     console.error("[WC-SEND] sendTextMessage error:", error);
   }
 
-  // Cooldown start karo
-  startCooldown(COOLDOWN_MS);
-
-  if (sendBtn) sendBtn.disabled = false;
+  // Cooldown start karo — admin ke liye nahi
+  if (isAdminUser) {
+    // Admin — instant send, no cooldown
+    if (sendBtn) sendBtn.disabled = false;
+  } else {
+    startCooldown(COOLDOWN_MS);
+  }
 }
 
 // ============ COOLDOWN SYSTEM ============
