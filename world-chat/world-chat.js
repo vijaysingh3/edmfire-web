@@ -5,43 +5,29 @@
 // Each message: { username, text, timestamp, uid, replyTo }
 // ============================================
 
-// Height fix for Android WebView — keyboard open/close pe view adjust karo
-function setAppHeight() {
-  var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  document.documentElement.style.height = viewH + "px";
-  document.body.style.height = viewH + "px";
-}
-setAppHeight();
+// Height fix for Android WebView — visualViewport se adjust karo
+// ADJUST_RESIZE system se handle hota hai, sirf scroll fix chahiye
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", function() {
-    setAppHeight();
+    // Keyboard open hone pe input field visible rahe
     if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
       setTimeout(function() {
         document.activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
     }
   });
-} else {
-  window.addEventListener("resize", setAppHeight);
 }
 
 // ============ ANDROID KEYBOARD CALLBACKS ============
+// Yeh functions Android se call ho sakte hain, ab sirf scroll handle karte hain
 window.onKeyboardOpen = function(keypadHeight) {
-  console.log("[WC-KB] Keyboard opened, height:", keypadHeight);
-  var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  document.documentElement.style.height = viewH + "px";
-  document.body.style.height = viewH + "px";
-  setTimeout(function() {
-    scrollToBottom();
-    if (msgInput) msgInput.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, 150);
+  console.log("[WC-KB] Keyboard opened");
+  setTimeout(function() { scrollToBottom(); }, 150);
 };
 
 window.onKeyboardClose = function() {
   console.log("[WC-KB] Keyboard closed");
-  document.documentElement.style.height = "100%";
-  document.body.style.height = "100%";
-  setAppHeight();
+  setTimeout(function() { scrollToBottom(); }, 100);
 };
 
 // ============ STATE ============
