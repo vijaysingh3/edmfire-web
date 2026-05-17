@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>World Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="world-chat.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <div class="header-avatar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div class="header-info">
+        <div class="header-title">World Chat</div>
+        <div class="header-status" id="onlineStatus">Connecting...</div>
+      </div>
+      <div class="header-online-count" id="onlineCount" style="display:none;">
+        <span class="online-dot"></span>
+        <span id="onlineCountText">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div class="chat-container" id="chatContainer">
+    <div class="chat-loading" id="chatLoading">
+      <div class="loading-spinner"></div>
+      <span>Loading chat...</span>
+    </div>
+  </div>
+
+  <!-- Bottom Input Bar -->
+  <div class="bottom-bar" id="bottomBar" style="display:none;">
+    <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" maxlength="500">
+    <button class="send-btn" id="sendBtn" title="Send">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Context Menu -->
+  <div class="context-menu" id="contextMenu" style="display:none;">
+    <div class="context-menu-item" id="ctxCopy">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy
+    </div>
+  </div>
+
+  <!-- Auth Error Overlay -->
+  <div class="auth-error" id="authError" style="display:none;">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    <h2>Authentication Failed</h2>
+    <p>Please open this page from the app</p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="/api/firebase-config"></script>
+  <script src="../firebase/auth.js"></script>
+  <script src="world-chat.js"></script>
+
+</body>
+</html>
