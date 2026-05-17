@@ -2,7 +2,7 @@
 // EDMFire World Chat - Isolated Page
 // All authenticated players chat in one room
 // RTDB node: worldChat/messages
-// Each message: { username, text, timestamp, uid }
+// Each message: { username, text, timestamp, uid, replyTo }
 // ============================================
 
 // Height fix for Android WebView — keyboard open/close pe view adjust karo
@@ -15,7 +15,6 @@ setAppHeight();
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", function() {
     setAppHeight();
-    // Keyboard open hone pe input field visible rahe
     if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
       setTimeout(function() {
         document.activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -27,14 +26,11 @@ if (window.visualViewport) {
 }
 
 // ============ ANDROID KEYBOARD CALLBACKS ============
-// Android se call hoga jab keyboard open/close ho
 window.onKeyboardOpen = function(keypadHeight) {
   console.log("[WC-KB] Keyboard opened, height:", keypadHeight);
-  // Body height reduce karo taki bottom bar keyboard ke upar rahe
   var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   document.documentElement.style.height = viewH + "px";
   document.body.style.height = viewH + "px";
-  // Chat container scroll karo
   setTimeout(function() {
     scrollToBottom();
     if (msgInput) msgInput.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -43,7 +39,6 @@ window.onKeyboardOpen = function(keypadHeight) {
 
 window.onKeyboardClose = function() {
   console.log("[WC-KB] Keyboard closed");
-  // Full height restore karo
   document.documentElement.style.height = "100%";
   document.body.style.height = "100%";
   setAppHeight();
@@ -56,9 +51,14 @@ var currentUsername = "";
 var isAuthenticating = false;
 var contextMsgKey = null;
 var contextMsgText = null;
+var contextMsgUid = null;
 var lastDateStr = "";
 var allMessagesData = {};
 var CHAT_REF = "worldChat/messages";
+var COOLDOWN_MS = 5000; // 5 second cooldown
+var lastSendTime = 0;
+var cooldownTimer = null;
+var replyingTo = null; // { key, text, username }
 
 // ============ DOM ============
 var chatContainer = document.getElementById("chatContainer");
@@ -72,6 +72,13 @@ var authError = document.getElementById("authError");
 var chatLoading = document.getElementById("chatLoading");
 var contextMenu = document.getElementById("contextMenu");
 var ctxCopy = document.getElementById("ctxCopy");
+var ctxReply = document.getElementById("ctxReply");
+var ctxDelete = document.getElementById("ctxDelete");
+var replyBar = document.getElementById("replyBar");
+var replyBarText = document.getElementById("replyBarText");
+var replyBarClose = document.getElementById("replyBarClose");
+var cooldownOverlay = document.getElementById("cooldownOverlay");
+var cooldownText = document.getElementById("cooldownText");
 
 console.log("[WC-INIT] World Chat script loaded");
 
@@ -145,7 +152,6 @@ async function initApp() {
 async function fetchUsernameAndStartChat() {
   if (!verifiedUid) return;
 
-  // Get username from Firestore Users collection
   try {
     var db = firebase.firestore();
     var userDoc = await db.collection("Users").doc(verifiedUid).get();
@@ -161,7 +167,6 @@ async function fetchUsernameAndStartChat() {
     currentUsername = "User_" + verifiedUid.substring(0, 6);
   }
 
-  // Show bottom bar and start chat
   if (bottomBar) bottomBar.style.display = "flex";
   loadChat();
 }
@@ -184,11 +189,9 @@ function loadChat() {
 function renderChat(data) {
   if (!chatContainer) return;
 
-  // Remove loading indicator
   var loadingEl = document.getElementById("chatLoading");
   if (loadingEl) loadingEl.remove();
 
-  // Clear existing messages
   var msgs = chatContainer.querySelectorAll(".message, .date-separator");
   for (var i = 0; i < msgs.length; i++) msgs[i].remove();
 
@@ -197,7 +200,6 @@ function renderChat(data) {
     return;
   }
 
-  // Remove empty state if exists
   var emptyEl = chatContainer.querySelector(".chat-empty");
   if (emptyEl) emptyEl.remove();
 
@@ -234,10 +236,16 @@ function appendMessage(msgKey, msg) {
   var div = document.createElement("div");
   div.className = "message " + (isOwn ? "own" : "other");
   div.setAttribute("data-key", msgKey);
+  div.setAttribute("data-uid", msg.uid || "");
 
   var content = "";
 
-  // Username (show for others, or "You" for own)
+  // Reply preview (agar reply hai)
+  if (msg.replyTo) {
+    content += '<div class="msg-reply-preview">' + escapeHtml(msg.replyTo) + '</div>';
+  }
+
+  // Username
   if (isOwn) {
     content += '<div class="msg-username">You</div>';
   } else {
@@ -255,15 +263,21 @@ function appendMessage(msgKey, msg) {
   div.innerHTML = content;
   chatContainer.appendChild(div);
 
-  // Long press for context menu (mobile)
+  // Click — context menu show karo (Delete, Copy, Reply)
+  div.addEventListener("click", function(e) {
+    e.preventDefault();
+    showContextMenu(e, msgKey, msg.text, msg.uid, msg.username);
+  });
+
+  // Long press bhi kaam kare
   var pressTimer = null;
   div.addEventListener("contextmenu", function(e) {
     e.preventDefault();
-    showContextMenu(e, msgKey, msg.text);
+    showContextMenu(e, msgKey, msg.text, msg.uid, msg.username);
   });
   div.addEventListener("touchstart", function() {
     pressTimer = setTimeout(function() {
-      showContextMenu({ clientX: 50, clientY: 100 }, msgKey, msg.text);
+      showContextMenu({ clientX: 50, clientY: 100 }, msgKey, msg.text, msg.uid, msg.username);
     }, 500);
   }, { passive: true });
   div.addEventListener("touchend", function() { clearTimeout(pressTimer); });
@@ -281,18 +295,42 @@ async function sendTextMessage() {
     return;
   }
 
+  // 500 character limit
+  if (text.length > 500) {
+    console.log("[WC-SEND] Text exceeds 500 characters");
+    return;
+  }
+
+  // Cooldown check
+  var now = Date.now();
+  var timeSinceLastSend = now - lastSendTime;
+  if (timeSinceLastSend < COOLDOWN_MS) {
+    startCooldown(COOLDOWN_MS - timeSinceLastSend);
+    return;
+  }
+
+  // Build message object
+  var newMsg = {
+    uid: verifiedUid,
+    username: currentUsername,
+    text: text,
+    timestamp: Date.now()
+  };
+
+  // Reply add karo agar hai
+  if (replyingTo) {
+    var replyPreview = replyingTo.username + ": " + (replyingTo.text || "").substring(0, 60);
+    newMsg.replyTo = replyPreview;
+    cancelReply();
+  }
+
   msgInput.value = "";
+  autoResizeInput();
   if (sendBtn) sendBtn.disabled = true;
+  lastSendTime = Date.now();
 
   try {
     var ref = firebase.database().ref(CHAT_REF);
-    var newMsg = {
-      uid: verifiedUid,
-      username: currentUsername,
-      text: text,
-      timestamp: Date.now()
-    };
-
     await new Promise(function(resolve) {
       ref.push(newMsg, function(error) {
         if (error) {
@@ -308,19 +346,57 @@ async function sendTextMessage() {
     console.error("[WC-SEND] sendTextMessage error:", error);
   }
 
+  // Cooldown start karo
+  startCooldown(COOLDOWN_MS);
+
   if (sendBtn) sendBtn.disabled = false;
 }
 
+// ============ COOLDOWN SYSTEM ============
+function startCooldown(remainingMs) {
+  if (cooldownTimer) clearInterval(cooldownTimer);
+  if (sendBtn) sendBtn.disabled = true;
+  if (cooldownOverlay) cooldownOverlay.style.display = "block";
+
+  var remaining = Math.ceil(remainingMs / 1000);
+  if (cooldownText) cooldownText.textContent = remaining + "s";
+
+  cooldownTimer = setInterval(function() {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(cooldownTimer);
+      cooldownTimer = null;
+      if (cooldownOverlay) cooldownOverlay.style.display = "none";
+      if (sendBtn) sendBtn.disabled = false;
+    } else {
+      if (cooldownText) cooldownText.textContent = remaining + "s";
+    }
+  }, 1000);
+}
+
 // ============ CONTEXT MENU ============
-function showContextMenu(e, msgKey, text) {
+function showContextMenu(e, msgKey, text, uid, username) {
   contextMsgKey = msgKey;
   contextMsgText = text;
+  contextMsgUid = uid || "";
+
+  // Delete option — sirf apne messages ke liye
+  if (ctxDelete) {
+    if (contextMsgUid === verifiedUid) {
+      ctxDelete.style.display = "flex";
+    } else {
+      ctxDelete.style.display = "none";
+    }
+  }
+
   if (contextMenu) {
     contextMenu.style.display = "block";
     var x = e.clientX || 50;
     var y = e.clientY || 50;
-    if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
-    if (y + 80 > window.innerHeight) y = window.innerHeight - 90;
+    if (x + 170 > window.innerWidth) x = window.innerWidth - 180;
+    // Delete visible hai ya nahi — height accordingly
+    var menuHeight = (contextMsgUid === verifiedUid) ? 140 : 90;
+    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
     contextMenu.style.left = x + "px";
     contextMenu.style.top = y + "px";
   }
@@ -330,8 +406,10 @@ function hideContextMenu() {
   if (contextMenu) contextMenu.style.display = "none";
   contextMsgKey = null;
   contextMsgText = null;
+  contextMsgUid = null;
 }
 
+// Copy
 if (ctxCopy) {
   ctxCopy.addEventListener("click", function() {
     if (!contextMsgText) return;
@@ -349,21 +427,95 @@ if (ctxCopy) {
   });
 }
 
+// Reply
+if (ctxReply) {
+  ctxReply.addEventListener("click", function() {
+    if (!contextMsgText) return;
+    var replyUsername = "Unknown";
+    // Username find karo messages data se
+    if (allMessagesData[contextMsgKey]) {
+      replyUsername = allMessagesData[contextMsgKey].username || "Unknown";
+    }
+    setReplyingTo(contextMsgKey, contextMsgText, replyUsername);
+    hideContextMenu();
+    if (msgInput) msgInput.focus();
+  });
+}
+
+// Delete — sirf apne messages
+if (ctxDelete) {
+  ctxDelete.addEventListener("click", function() {
+    if (!contextMsgKey) return;
+    if (contextMsgUid !== verifiedUid) {
+      hideContextMenu();
+      return;
+    }
+    // RTDB se delete karo
+    firebase.database().ref(CHAT_REF + "/" + contextMsgKey).remove(function(error) {
+      if (error) {
+        console.error("[WC-DEL] Delete error:", error);
+      } else {
+        console.log("[WC-DEL] Message deleted:", contextMsgKey);
+      }
+    });
+    hideContextMenu();
+  });
+}
+
 document.addEventListener("click", function(e) {
   if (contextMenu && !contextMenu.contains(e.target)) hideContextMenu();
 });
+
+// ============ REPLY SYSTEM ============
+function setReplyingTo(key, text, username) {
+  replyingTo = { key: key, text: text, username: username };
+  if (replyBar && replyBarText) {
+    replyBarText.textContent = username + ": " + (text || "").substring(0, 50) + ((text || "").length > 50 ? "..." : "");
+    replyBar.style.display = "block";
+  }
+}
+
+function cancelReply() {
+  replyingTo = null;
+  if (replyBar) replyBar.style.display = "none";
+}
+
+if (replyBarClose) {
+  replyBarClose.addEventListener("click", function() {
+    cancelReply();
+  });
+}
+
+// ============ TEXTAREA AUTO-RESIZE ============
+function autoResizeInput() {
+  if (!msgInput) return;
+  msgInput.style.height = "auto";
+  var newHeight = Math.min(msgInput.scrollHeight, 100);
+  msgInput.style.height = newHeight + "px";
+}
 
 // ============ SEND EVENTS ============
 if (sendBtn) {
   sendBtn.addEventListener("click", sendTextMessage);
 }
 if (msgInput) {
-  msgInput.addEventListener("keypress", function(e) {
+  // Auto-resize on input
+  msgInput.addEventListener("input", function() {
+    autoResizeInput();
+    // 500 char limit enforce
+    if (msgInput.value.length > 500) {
+      msgInput.value = msgInput.value.substring(0, 500);
+    }
+  });
+
+  // Enter = send, Shift+Enter = new line
+  msgInput.addEventListener("keydown", function(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendTextMessage();
     }
   });
+
   // Keyboard open hone pe scroll fix
   msgInput.addEventListener("focus", function() {
     setTimeout(function() {

@@ -37,9 +37,19 @@
     </div>
   </div>
 
+  <!-- Reply Preview Bar -->
+  <div class="reply-bar" id="replyBar" style="display:none;">
+    <div class="reply-bar-content">
+      <div class="reply-bar-text" id="replyBarText"></div>
+      <button class="reply-bar-close" id="replyBarClose" title="Cancel reply">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Bottom Input Bar -->
   <div class="bottom-bar" id="bottomBar" style="display:none;">
-    <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" maxlength="500">
+    <textarea id="msgInput" placeholder="Type a message..." autocomplete="off" maxlength="500" rows="1"></textarea>
     <button class="send-btn" id="sendBtn" title="Send">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="22" y1="2" x2="11" y2="13"/>
@@ -48,11 +58,24 @@
     </button>
   </div>
 
+  <!-- Cooldown Overlay -->
+  <div class="cooldown-overlay" id="cooldownOverlay" style="display:none;">
+    <span class="cooldown-text" id="cooldownText">5s</span>
+  </div>
+
   <!-- Context Menu -->
   <div class="context-menu" id="contextMenu" style="display:none;">
     <div class="context-menu-item" id="ctxCopy">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       Copy
+    </div>
+    <div class="context-menu-item" id="ctxReply">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+      Reply
+    </div>
+    <div class="context-menu-item context-menu-danger" id="ctxDelete">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Delete
     </div>
   </div>
 
