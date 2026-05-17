@@ -467,6 +467,8 @@ async function sendTextMessage() {
   autoResizeInput();
   if (sendBtn) sendBtn.disabled = true;
   lastSendTime = Date.now();
+  // Cooldown timestamp localStorage me save karo — refresh survive kare
+  try { localStorage.setItem("wc_lastSendTime", String(lastSendTime)); } catch(e) {}
 
   try {
     var ref = firebase.database().ref(chatRef);
@@ -495,6 +497,29 @@ async function sendTextMessage() {
 }
 
 // ============ COOLDOWN SYSTEM ============
+
+// Page load pe localStorage se cooldown restore karo
+(function restoreCooldown() {
+  try {
+    var saved = localStorage.getItem("wc_lastSendTime");
+    if (saved) {
+      lastSendTime = parseInt(saved) || 0;
+      var now = Date.now();
+      var elapsed = now - lastSendTime;
+      // Agar 30s cooldown abhi bhi baaki hai (normal user)
+      if (lastSendTime > 0 && elapsed < COOLDOWN_MS) {
+        // Page refresh ke baad bhi cooldown restore ho
+        setTimeout(function() {
+          startCooldown(COOLDOWN_MS - elapsed);
+        }, 500); // thoda delay se auth complete hone do
+      } else if (elapsed >= COOLDOWN_MS) {
+        // Cooldown already complete — clear karo
+        localStorage.removeItem("wc_lastSendTime");
+      }
+    }
+  } catch(e) {}
+})();
+
 function startCooldown(remainingMs) {
   if (cooldownTimer) clearInterval(cooldownTimer);
   if (sendBtn) sendBtn.disabled = true;
@@ -510,6 +535,9 @@ function startCooldown(remainingMs) {
       cooldownTimer = null;
       if (cooldownOverlay) cooldownOverlay.style.display = "none";
       if (sendBtn) sendBtn.disabled = false;
+      // Cooldown complete — localStorage clear karo
+      try { localStorage.removeItem("wc_lastSendTime"); } catch(e) {}
+      lastSendTime = 0;
     } else {
       if (cooldownText) cooldownText.textContent = remaining + "s";
     }
