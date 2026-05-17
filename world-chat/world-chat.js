@@ -5,17 +5,23 @@
 // Each message: { username, text, timestamp, uid }
 // ============================================
 
-// Height fix for Android WebView
+// Height fix for Android WebView — keyboard open/close pe view adjust karo
 function setAppHeight() {
   var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  var bodyH = document.body.scrollHeight;
-  if (bodyH > viewH + 10) {
-    document.body.style.height = viewH + "px";
-  }
+  document.documentElement.style.height = viewH + "px";
+  document.body.style.height = viewH + "px";
 }
 setAppHeight();
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", setAppHeight);
+  window.visualViewport.addEventListener("resize", function() {
+    setAppHeight();
+    // Keyboard open hone pe input field visible rahe
+    if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+      setTimeout(function() {
+        document.activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  });
 } else {
   window.addEventListener("resize", setAppHeight);
 }
@@ -334,6 +340,12 @@ if (msgInput) {
       e.preventDefault();
       sendTextMessage();
     }
+  });
+  // Keyboard open hone pe scroll fix
+  msgInput.addEventListener("focus", function() {
+    setTimeout(function() {
+      scrollToBottom();
+    }, 300);
   });
 }
 

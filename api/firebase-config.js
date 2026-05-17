@@ -22,10 +22,10 @@ const firebaseConfig = ${JSON.stringify(firebaseConfig)};
 // Firebase initialize karna
 firebase.initializeApp(firebaseConfig);
 
-// Firebase services
+// Firebase services (safe init — agar SDK load nahi hua toh error nahi aayega)
 const auth = firebase.auth();
 const database = firebase.database();
-const storage = firebase.storage();
+if (firebase.storage) { const storage = firebase.storage(); }
 `;
 
   res.status(200).send(js);

@@ -203,6 +203,8 @@ body {
   flex-shrink: 0;
   z-index: 10;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  /* Keyboard ke upar properly stay kare */
+  position: relative;
 }
 
 .bottom-bar input[type="text"] {
