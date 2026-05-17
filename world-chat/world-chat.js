@@ -1,7 +1,7 @@
 // ============================================
-// EDMFire World Chat - Isolated Page
-// All authenticated players chat in one room
-// RTDB node: worldChat/messages
+// EDMFire World Chat - Room-Based System
+// Daily rooms: worldChat/rooms/{timestamp}
+// Meta: worldChat/meta/currentRoom
 // Each message: { username, text, timestamp, uid, replyTo }
 // ============================================
 
@@ -40,11 +40,15 @@ var contextMsgText = null;
 var contextMsgUid = null;
 var lastDateStr = "";
 var allMessagesData = {};
-var CHAT_REF = "worldChat/messages";
+var activeRoomId = null;
+var chatListenerRef = null;
+var metaListenerRef = null;
 var COOLDOWN_MS = 5000; // 5 second cooldown
 var lastSendTime = 0;
 var cooldownTimer = null;
 var replyingTo = null; // { key, text, username }
+var ROOM_CHECK_INTERVAL = 60000; // Check meta every 60 seconds
+var roomCheckTimer = null;
 
 // ============ DOM ============
 var chatContainer = document.getElementById("chatContainer");
@@ -66,7 +70,18 @@ var replyBarClose = document.getElementById("replyBarClose");
 var cooldownOverlay = document.getElementById("cooldownOverlay");
 var cooldownText = document.getElementById("cooldownText");
 
-console.log("[WC-INIT] World Chat script loaded");
+console.log("[WC-INIT] World Chat script loaded (room-based)");
+
+// ============ ROOM HELPERS ============
+
+function getTodayStart() {
+  return Math.floor(Date.now() / 86400000) * 86400000;
+}
+
+function getChatRef() {
+  if (!activeRoomId) return null;
+  return "worldChat/rooms/" + activeRoomId;
+}
 
 // ============ ANDROID WEBVIEW AUTH ============
 window.receiveAuthToken = async function(idToken) {
@@ -154,13 +169,84 @@ async function fetchUsernameAndStartChat() {
   }
 
   if (bottomBar) bottomBar.style.display = "flex";
-  loadChat();
+  initRoomSystem();
 }
 
-// ============ LOAD CHAT (Realtime Listener) ============
-function loadChat() {
-  console.log("[WC-CHAT] Loading chat from RTDB:", CHAT_REF);
-  var ref = firebase.database().ref(CHAT_REF).orderByChild("timestamp").limitToLast(200);
+// ============ ROOM SYSTEM ============
+
+function initRoomSystem() {
+  console.log("[WC-ROOM] Initializing room system...");
+
+  // Listen to meta/currentRoom for active room changes
+  metaListenerRef = firebase.database().ref("worldChat/meta/currentRoom");
+
+  metaListenerRef.on("value", function(snapshot) {
+    var roomId = snapshot.val();
+    console.log("[WC-ROOM] Current room from meta:", roomId);
+
+    if (roomId && String(roomId) !== String(activeRoomId)) {
+      // Room changed — switch to new room
+      activeRoomId = roomId;
+      switchToRoom(roomId);
+    } else if (!roomId) {
+      // No room exists yet — show waiting state
+      activeRoomId = null;
+      showNoRoomState();
+    }
+  }, function(error) {
+    console.error("[WC-ROOM] Meta listener error:", error);
+    // Fallback: try using today's start
+    var todayStart = getTodayStart();
+    if (!activeRoomId) {
+      activeRoomId = todayStart;
+      switchToRoom(todayStart);
+    }
+  });
+
+  // Periodic check: agar admin ne naya room banaya toh auto-switch
+  roomCheckTimer = setInterval(function() {
+    if (activeRoomId) {
+      var todayStart = getTodayStart();
+      // Agar aaj ka room nahi hai aur meta me update aaya toh switch ho jayega
+      // Ye sirf backup hai
+      console.log("[WC-ROOM] Periodic check - activeRoom:", activeRoomId, "todayStart:", todayStart);
+    }
+  }, ROOM_CHECK_INTERVAL);
+}
+
+function switchToRoom(roomId) {
+  console.log("[WC-ROOM] Switching to room:", roomId);
+
+  // Detach old listener
+  if (chatListenerRef) {
+    firebase.database().ref(chatListenerRef).off();
+    chatListenerRef = null;
+  }
+
+  // Clear chat container
+  if (chatContainer) {
+    var msgs = chatContainer.querySelectorAll(".message, .date-separator, .chat-empty, .no-room-state");
+    for (var i = 0; i < msgs.length; i++) msgs[i].remove();
+  }
+
+  allMessagesData = {};
+  lastDateStr = "";
+
+  // Show loading
+  var loadingEl = document.getElementById("chatLoading");
+  if (!loadingEl) {
+    var loadDiv = document.createElement("div");
+    loadDiv.className = "chat-loading";
+    loadDiv.id = "chatLoading";
+    loadDiv.innerHTML = '<div class="loading-spinner"></div><span>Loading chat...</span>';
+    chatContainer.appendChild(loadDiv);
+  }
+
+  var chatRef = "worldChat/rooms/" + roomId;
+  chatListenerRef = chatRef;
+
+  // Attach new listener
+  var ref = firebase.database().ref(chatRef).orderByChild("timestamp").limitToLast(200);
 
   ref.on("value", function(snapshot) {
     var data = snapshot.val();
@@ -168,7 +254,31 @@ function loadChat() {
     renderChat(data);
   }, function(error) {
     console.error("[WC-CHAT] RTDB listener error:", error);
+    // Agar permission error ya room not found, show message
+    if (chatContainer) {
+      var loadEl = document.getElementById("chatLoading");
+      if (loadEl) loadEl.remove();
+      chatContainer.innerHTML += '<div class="chat-empty"><h3>Room not available</h3><p>Waiting for admin to create a room...</p></div>';
+    }
   });
+
+  // Update status
+  var dateStr = new Date(parseInt(roomId));
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  setStatus("Room: " + dateStr.getDate() + " " + months[dateStr.getMonth()] + " " + dateStr.getFullYear(), "online");
+}
+
+function showNoRoomState() {
+  if (chatContainer) {
+    var msgs = chatContainer.querySelectorAll(".message, .date-separator, .chat-empty, .no-room-state");
+    for (var i = 0; i < msgs.length; i++) msgs[i].remove();
+
+    var loadEl = document.getElementById("chatLoading");
+    if (loadEl) loadEl.remove();
+
+    chatContainer.innerHTML += '<div class="chat-empty no-room-state"><h3>No chat room active</h3><p>Waiting for admin to create a room...</p></div>';
+  }
+  setStatus("Waiting for room", "");
 }
 
 // ============ RENDER CHAT ============
@@ -178,16 +288,13 @@ function renderChat(data) {
   var loadingEl = document.getElementById("chatLoading");
   if (loadingEl) loadingEl.remove();
 
-  var msgs = chatContainer.querySelectorAll(".message, .date-separator");
+  var msgs = chatContainer.querySelectorAll(".message, .date-separator, .chat-empty, .no-room-state");
   for (var i = 0; i < msgs.length; i++) msgs[i].remove();
 
   if (!data) {
     chatContainer.innerHTML += '<div class="chat-empty"><h3>No messages yet</h3><p>Be the first to say hello!</p></div>';
     return;
   }
-
-  var emptyEl = chatContainer.querySelector(".chat-empty");
-  if (emptyEl) emptyEl.remove();
 
   var keys = Object.keys(data).sort(function(a, b) {
     return (data[a].timestamp || 0) - (data[b].timestamp || 0);
@@ -281,6 +388,13 @@ async function sendTextMessage() {
     return;
   }
 
+  // No active room
+  var chatRef = getChatRef();
+  if (!chatRef) {
+    console.log("[WC-SEND] No active room, returning");
+    return;
+  }
+
   // 500 character limit
   if (text.length > 500) {
     console.log("[WC-SEND] Text exceeds 500 characters");
@@ -316,14 +430,14 @@ async function sendTextMessage() {
   lastSendTime = Date.now();
 
   try {
-    var ref = firebase.database().ref(CHAT_REF);
+    var ref = firebase.database().ref(chatRef);
     await new Promise(function(resolve) {
       ref.push(newMsg, function(error) {
         if (error) {
           console.error("[WC-SEND] Send error:", error);
           resolve(false);
         } else {
-          console.log("[WC-SEND] Message sent");
+          console.log("[WC-SEND] Message sent to room:", activeRoomId);
           resolve(true);
         }
       });
@@ -436,8 +550,13 @@ if (ctxDelete) {
       hideContextMenu();
       return;
     }
-    // RTDB se delete karo
-    firebase.database().ref(CHAT_REF + "/" + contextMsgKey).remove(function(error) {
+    // RTDB se delete karo — current room me se
+    var chatRef = getChatRef();
+    if (!chatRef) {
+      hideContextMenu();
+      return;
+    }
+    firebase.database().ref(chatRef + "/" + contextMsgKey).remove(function(error) {
       if (error) {
         console.error("[WC-DEL] Delete error:", error);
       } else {
