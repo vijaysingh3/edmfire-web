@@ -26,6 +26,29 @@ if (window.visualViewport) {
   window.addEventListener("resize", setAppHeight);
 }
 
+// ============ ANDROID KEYBOARD CALLBACKS ============
+// Android se call hoga jab keyboard open/close ho
+window.onKeyboardOpen = function(keypadHeight) {
+  console.log("[WC-KB] Keyboard opened, height:", keypadHeight);
+  // Body height reduce karo taki bottom bar keyboard ke upar rahe
+  var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.height = viewH + "px";
+  document.body.style.height = viewH + "px";
+  // Chat container scroll karo
+  setTimeout(function() {
+    scrollToBottom();
+    if (msgInput) msgInput.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, 150);
+};
+
+window.onKeyboardClose = function() {
+  console.log("[WC-KB] Keyboard closed");
+  // Full height restore karo
+  document.documentElement.style.height = "100%";
+  document.body.style.height = "100%";
+  setAppHeight();
+};
+
 // ============ STATE ============
 var currentUser = null;
 var verifiedUid = null;
