@@ -813,14 +813,20 @@ function showToast(message, type) {
 }
 
 // ============ HELPERS ============
+function toIST(date) {
+  var istOffset = 5.5 * 60 * 60000;
+  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+}
+
 function formatDate(d) {
   if (!d) return "-";
   if (!(d instanceof Date)) d = new Date(d);
   if (isNaN(d.getTime())) return "-";
+  d = toIST(d);
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  var hours = d.getHours();
-  var mins = d.getMinutes();
-  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear() + ", " +
+  var hours = d.getUTCHours();
+  var mins = d.getUTCMinutes();
+  return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear() + ", " +
     (hours % 12 || 12) + ":" + (mins < 10 ? "0" : "") + mins + " " + (hours >= 12 ? "PM" : "AM");
 }
 

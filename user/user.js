@@ -394,16 +394,22 @@ function scrollToBottom() {
   requestAnimationFrame(function() { chatContainer.scrollTop = chatContainer.scrollHeight; });
 }
 
+function toIST(date) {
+  var istOffset = 5.5 * 60 * 60000;
+  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+}
+
 function formatTime(timestamp) {
   if (!timestamp) return "";
-  var date = new Date(timestamp);
-  var now = new Date();
-  var isToday = date.toDateString() === now.toDateString();
-  var h = date.getHours(); var m = date.getMinutes();
+  var date = toIST(new Date(timestamp));
+  var now = toIST(new Date());
+  var isToday = date.getUTCFullYear() + "-" + date.getUTCMonth() + "-" + date.getUTCDate() === now.getUTCFullYear() + "-" + now.getUTCMonth() + "-" + now.getUTCDate();
+  var h = date.getUTCHours(); var m = date.getUTCMinutes();
   var ampm = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
   m = m < 10 ? "0" + m : m;
   if (isToday) return h + ":" + m + " " + ampm;
-  return date.getDate() + " " + date.toLocaleString("en", { month: "short" }) + ", " + h + ":" + m + " " + ampm;
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return date.getUTCDate() + " " + months[date.getUTCMonth()] + ", " + h + ":" + m + " " + ampm;
 }
 
 function escapeHtml(text) {

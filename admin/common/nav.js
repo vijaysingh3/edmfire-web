@@ -242,10 +242,19 @@ function initCommonUI() {
 // ========== UTILITY ==========
 function escapeHtml(t) { var d = document.createElement("div"); d.appendChild(document.createTextNode(t)); return d.innerHTML; }
 
+function toIST(date) {
+  var istOffset = 5.5 * 60 * 60000;
+  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+}
+
 function formatTime(ts) {
   if (!ts) return "";
-  var d = new Date(ts); var now = new Date(); var today = d.toDateString() === now.toDateString();
-  var h = d.getHours(); var m = d.getMinutes(); var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; m = m < 10 ? "0" + m : m;
-  if (today) return h + ":" + m + " " + ap;
-  return d.getDate() + " " + d.toLocaleString("en", { month: "short" }) + ", " + h + ":" + m + " " + ap;
+  var d = toIST(new Date(ts)); var now = toIST(new Date());
+  var today = d.getUTCFullYear() + "-" + d.getUTCMonth() + "-" + d.getUTCDate();
+  var todayNow = now.getUTCFullYear() + "-" + now.getUTCMonth() + "-" + now.getUTCDate();
+  var isToday = today === todayNow;
+  var h = d.getUTCHours(); var m = d.getUTCMinutes(); var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; m = m < 10 ? "0" + m : m;
+  if (isToday) return h + ":" + m + " " + ap;
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return d.getUTCDate() + " " + months[d.getUTCMonth()] + ", " + h + ":" + m + " " + ap;
 }

@@ -234,7 +234,12 @@ function showToast(message, type) {
   }, 4000);
 }
 
-// Format date helper
+// Format date helper (IST)
+function toIST(date) {
+  var istOffset = 5.5 * 60 * 60000;
+  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+}
+
 function formatDate(ts) {
   if (!ts) return "-";
   var d;
@@ -248,10 +253,11 @@ function formatDate(ts) {
     d = new Date(ts);
   }
   if (isNaN(d.getTime())) return String(ts);
+  d = toIST(d);
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear() + ", " +
-    (d.getHours() % 12 || 12) + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes() +
-    " " + (d.getHours() >= 12 ? "PM" : "AM");
+  return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear() + ", " +
+    (d.getUTCHours() % 12 || 12) + ":" + (d.getUTCMinutes() < 10 ? "0" : "") + d.getUTCMinutes() +
+    " " + (d.getUTCHours() >= 12 ? "PM" : "AM");
 }
 
 // ========== INIT ==========

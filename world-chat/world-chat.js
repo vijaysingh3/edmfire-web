@@ -75,7 +75,12 @@ console.log("[WC-INIT] World Chat script loaded (room-based)");
 // ============ ROOM HELPERS ============
 
 function getTodayStart() {
-  return Math.floor(Date.now() / 86400000) * 86400000;
+  // IST (UTC+5:30) midnight as epoch timestamp
+  var now = new Date();
+  var istOffset = 5.5 * 60 * 60000; // 5 hours 30 min in ms
+  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  var istMs = utcMs + istOffset;
+  return Math.floor(istMs / 86400000) * 86400000 - istOffset;
 }
 
 function getChatRef() {
@@ -262,10 +267,10 @@ function switchToRoom(roomId) {
     }
   });
 
-  // Update status
-  var dateStr = new Date(parseInt(roomId));
+  // Update status with IST date
+  var istDate = toIST(new Date(parseInt(roomId)));
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  setStatus("Room: " + dateStr.getDate() + " " + months[dateStr.getMonth()] + " " + dateStr.getFullYear(), "online");
+  setStatus("Room: " + istDate.getUTCDate() + " " + months[istDate.getUTCMonth()] + " " + istDate.getUTCFullYear(), "online");
 }
 
 function showNoRoomState() {
@@ -648,11 +653,17 @@ function showAuthError() {
   if (authError) authError.style.display = "flex";
 }
 
+function toIST(date) {
+  // Convert any Date object to IST Date object
+  var istOffset = 5.5 * 60 * 60000;
+  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+}
+
 function formatTime(timestamp) {
   if (!timestamp) return "";
-  var d = new Date(timestamp);
-  var h = d.getHours();
-  var m = d.getMinutes();
+  var d = toIST(new Date(timestamp));
+  var h = d.getUTCHours();
+  var m = d.getUTCMinutes();
   var ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   m = m < 10 ? "0" + m : m;
@@ -661,16 +672,16 @@ function formatTime(timestamp) {
 
 function formatDateSeparator(timestamp) {
   if (!timestamp) return "";
-  var d = new Date(timestamp);
-  var now = new Date();
-  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  var msgDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var d = toIST(new Date(timestamp));
+  var now = toIST(new Date());
+  var today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  var msgDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   var diff = today - msgDate;
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   if (diff === 0) return "Today";
   if (diff === 86400000) return "Yesterday";
-  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+  return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear();
 }
 
 function escapeHtml(text) {

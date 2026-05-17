@@ -32,12 +32,17 @@ console.log("[WC-ROOMS] Script loaded");
 
 // ============ HELPERS ============
 
+function toIST(date) {
+  var istOffset = 5.5 * 60 * 60000;
+  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+}
+
 function formatRoomDate(timestampStr) {
   var ts = parseInt(timestampStr);
   if (isNaN(ts)) return "Unknown";
-  var d = new Date(ts);
+  var d = toIST(new Date(ts));
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear() + ", 00:00 UTC";
+  return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear() + ", 12:00 AM IST";
 }
 
 function formatRoomId(timestampStr) {
@@ -47,7 +52,12 @@ function formatRoomId(timestampStr) {
 }
 
 function getTodayStart() {
-  return Math.floor(Date.now() / 86400000) * 86400000;
+  // IST (UTC+5:30) midnight as epoch timestamp
+  var now = new Date();
+  var istOffset = 5.5 * 60 * 60000; // 5 hours 30 min in ms
+  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  var istMs = utcMs + istOffset;
+  return Math.floor(istMs / 86400000) * 86400000 - istOffset;
 }
 
 function showToast(message, duration) {
@@ -304,8 +314,9 @@ if (bulkDeleteBtn) {
       return;
     }
 
-    // Convert date to timestamp (UTC midnight)
-    var selectedDate = new Date(dateVal + "T00:00:00Z");
+    // Convert date to IST midnight timestamp
+    var istOffset = 5.5 * 60 * 60000;
+    var selectedDate = new Date(dateVal + "T00:00:00+05:30");
     var beforeTimestamp = selectedDate.getTime();
 
     if (isNaN(beforeTimestamp)) {
