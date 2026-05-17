@@ -179,7 +179,7 @@ async function fetchUsernameAndStartChat() {
     var userDoc = await db.collection("Users").doc(verifiedUid).get();
     if (userDoc.exists) {
       var data = userDoc.data();
-      currentUsername = data.userName || data.username || data.name || ("User_" + verifiedUid.substring(0, 6));
+      currentUsername = data.UserName || data.userName || data.username || data.name || ("User_" + verifiedUid.substring(0, 6));
     } else {
       currentUsername = "User_" + verifiedUid.substring(0, 6);
     }
