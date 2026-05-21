@@ -394,26 +394,31 @@ function scrollToBottom() {
   requestAnimationFrame(function() { chatContainer.scrollTop = chatContainer.scrollHeight; });
 }
 
-// IST (Indian Standard Time, UTC+5:30) me convert karna
-// Har device ki local timezone ignore karke always IST show karega
-function toIST(date) {
-  var istOffset = 5.5 * 60 * 60000; // 5 hours 30 minutes in ms
-  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+// IST (Indian Standard Time) me time parts nikalna — Intl API se
+// Har device (kisi bhi timezone) pe always correct IST dikhayega
+function getISTParts(date) {
+  var parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", hour12: false
+  }).formatToParts(date);
+  var p = {};
+  for (var i = 0; i < parts.length; i++) p[parts[i].type] = parts[i].value;
+  return p;
 }
 
 function formatTime(timestamp) {
   if (!timestamp) return "";
-  var date = toIST(new Date(timestamp));
-  var now = toIST(new Date());
-  var isToday = date.getUTCFullYear() === now.getUTCFullYear() &&
-                date.getUTCMonth() === now.getUTCMonth() &&
-                date.getUTCDate() === now.getUTCDate();
-  var h = date.getUTCHours(); var m = date.getUTCMinutes();
+  var date = new Date(timestamp);
+  var p = getISTParts(date);
+  var now = getISTParts(new Date());
+  var h = parseInt(p.hour); var m = parseInt(p.minute);
   var ampm = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
   m = m < 10 ? "0" + m : m;
+  var isToday = p.year === now.year && p.month === now.month && p.day === now.day;
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   if (isToday) return h + ":" + m + " " + ampm;
-  return date.getUTCDate() + " " + months[date.getUTCMonth()] + ", " + h + ":" + m + " " + ampm;
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + ", " + h + ":" + m + " " + ampm;
 }
 
 function escapeHtml(text) {

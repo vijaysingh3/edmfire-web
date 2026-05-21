@@ -242,23 +242,28 @@ function initCommonUI() {
 // ========== UTILITY ==========
 function escapeHtml(t) { var d = document.createElement("div"); d.appendChild(document.createTextNode(t)); return d.innerHTML; }
 
-// IST (Indian Standard Time, UTC+5:30) me convert karna
-// Har device ki local timezone ignore karke always IST show karega
-function toIST(date) {
-  var istOffset = 5.5 * 60 * 60000; // 5 hours 30 minutes in ms
-  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+// IST (Indian Standard Time) me time parts nikalna — Intl API se
+// Har device (kisi bhi timezone) pe always correct IST dikhayega
+function getISTParts(date) {
+  var parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", hour12: false
+  }).formatToParts(date);
+  var p = {};
+  for (var i = 0; i < parts.length; i++) p[parts[i].type] = parts[i].value;
+  return p;
 }
 
 function formatTime(ts) {
   if (!ts) return "";
-  var d = toIST(new Date(ts));
-  var now = toIST(new Date());
-  var today = d.getUTCFullYear() === now.getUTCFullYear() &&
-              d.getUTCMonth() === now.getUTCMonth() &&
-              d.getUTCDate() === now.getUTCDate();
-  var h = d.getUTCHours(); var m = d.getUTCMinutes();
+  var date = new Date(ts);
+  var p = getISTParts(date);
+  var now = getISTParts(new Date());
+  var h = parseInt(p.hour); var m = parseInt(p.minute);
   var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; m = m < 10 ? "0" + m : m;
+  var today = p.year === now.year && p.month === now.month && p.day === now.day;
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   if (today) return h + ":" + m + " " + ap;
-  return d.getUTCDate() + " " + months[d.getUTCMonth()] + ", " + h + ":" + m + " " + ap;
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + ", " + h + ":" + m + " " + ap;
 }

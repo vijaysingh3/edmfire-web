@@ -176,27 +176,34 @@ function buildFields(fields) {
   return html;
 }
 
-// Helper: Format date — always IST (Indian Standard Time, UTC+5:30)
-function toIST(date) {
-  var istOffset = 5.5 * 60 * 60000;
-  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+// Helper: Format date — always IST (Indian Standard Time) — Intl API se
+// Har device (kisi bhi timezone) pe always correct IST dikhayega
+function getISTParts(date) {
+  var parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", hour12: false
+  }).formatToParts(date);
+  var p = {};
+  for (var i = 0; i < parts.length; i++) p[parts[i].type] = parts[i].value;
+  return p;
 }
 
 function formatDate(ts) {
   if (!ts) return "";
-  var d;
+  var date;
   if (ts && typeof ts.toDate === "function") {
-    d = toIST(ts.toDate());
-  } else if (typeof ts === "number") {
-    d = toIST(new Date(ts));
+    date = ts.toDate();
   } else {
-    d = toIST(new Date(ts));
+    date = new Date(ts);
   }
-  if (isNaN(d.getTime())) return String(ts);
+  if (isNaN(date.getTime())) return String(ts);
+  var p = getISTParts(date);
+  var h = parseInt(p.hour); var m = parseInt(p.minute);
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear() + ", " +
-    (d.getUTCHours() % 12 || 12) + ":" + (d.getUTCMinutes() < 10 ? "0" : "") + d.getUTCMinutes() +
-    " " + (d.getUTCHours() >= 12 ? "PM" : "AM");
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + " " + p.year + ", " +
+    (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m +
+    " " + (h >= 12 ? "PM" : "AM");
 }
 
 // Show error

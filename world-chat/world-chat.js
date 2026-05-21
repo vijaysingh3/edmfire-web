@@ -289,9 +289,10 @@ function switchToRoom(roomId) {
   });
 
   // Update status with IST date
-  var istDate = toIST(new Date(parseInt(roomId)));
+  var istDate = new Date(parseInt(roomId));
+  var istP = getISTParts(istDate);
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  setStatus("Room: " + istDate.getUTCDate() + " " + months[istDate.getUTCMonth()] + " " + istDate.getUTCFullYear(), "online");
+  setStatus("Room: " + parseInt(istP.day) + " " + months[parseInt(istP.month) - 1] + " " + istP.year, "online");
 }
 
 function showNoRoomState() {
@@ -718,17 +719,24 @@ function showAuthError() {
   if (authError) authError.style.display = "flex";
 }
 
-function toIST(date) {
-  // Convert any Date object to IST Date object
-  var istOffset = 5.5 * 60 * 60000;
-  return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+// IST (Indian Standard Time) me time parts nikalna — Intl API se
+// Har device (kisi bhi timezone) pe always correct IST dikhayega
+function getISTParts(date) {
+  var parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", hour12: false
+  }).formatToParts(date);
+  var p = {};
+  for (var i = 0; i < parts.length; i++) p[parts[i].type] = parts[i].value;
+  return p;
 }
 
 function formatTime(timestamp) {
   if (!timestamp) return "";
-  var d = toIST(new Date(timestamp));
-  var h = d.getUTCHours();
-  var m = d.getUTCMinutes();
+  var date = new Date(timestamp);
+  var p = getISTParts(date);
+  var h = parseInt(p.hour); var m = parseInt(p.minute);
   var ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   m = m < 10 ? "0" + m : m;
@@ -737,16 +745,21 @@ function formatTime(timestamp) {
 
 function formatDateSeparator(timestamp) {
   if (!timestamp) return "";
-  var d = toIST(new Date(timestamp));
-  var now = toIST(new Date());
-  var today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  var msgDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  var diff = today - msgDate;
-  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var date = new Date(timestamp);
+  var p = getISTParts(date);
+  var nowP = getISTParts(new Date());
+  var isToday = p.year === nowP.year && p.month === nowP.month && p.day === nowP.day;
 
-  if (diff === 0) return "Today";
-  if (diff === 86400000) return "Yesterday";
-  return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear();
+  // Yesterday check — subtract 1 day from now
+  var yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  var yP = getISTParts(yesterday);
+  var isYesterday = p.year === yP.year && p.month === yP.month && p.day === yP.day;
+
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  if (isToday) return "Today";
+  if (isYesterday) return "Yesterday";
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + " " + p.year;
 }
 
 function escapeHtml(text) {
