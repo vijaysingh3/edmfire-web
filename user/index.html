@@ -104,5 +104,16 @@
 
   <script src="/user/user.js"></script>
 
+  <!-- Service Worker: fast loading + offline support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/user/sw.js').then(function(reg) {
+        console.log('[UC-SW] Registered:', reg.scope);
+      }).catch(function(err) {
+        console.warn('[UC-SW] Registration failed:', err);
+      });
+    }
+  </script>
+
 </body>
 </html>
