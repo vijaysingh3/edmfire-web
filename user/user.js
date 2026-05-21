@@ -394,8 +394,10 @@ function scrollToBottom() {
   requestAnimationFrame(function() { chatContainer.scrollTop = chatContainer.scrollHeight; });
 }
 
+// IST (Indian Standard Time, UTC+5:30) me convert karna
+// Har device ki local timezone ignore karke always IST show karega
 function toIST(date) {
-  var istOffset = 5.5 * 60 * 60000;
+  var istOffset = 5.5 * 60 * 60000; // 5 hours 30 minutes in ms
   return new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
 }
 
@@ -403,12 +405,14 @@ function formatTime(timestamp) {
   if (!timestamp) return "";
   var date = toIST(new Date(timestamp));
   var now = toIST(new Date());
-  var isToday = date.getUTCFullYear() + "-" + date.getUTCMonth() + "-" + date.getUTCDate() === now.getUTCFullYear() + "-" + now.getUTCMonth() + "-" + now.getUTCDate();
+  var isToday = date.getUTCFullYear() === now.getUTCFullYear() &&
+                date.getUTCMonth() === now.getUTCMonth() &&
+                date.getUTCDate() === now.getUTCDate();
   var h = date.getUTCHours(); var m = date.getUTCMinutes();
   var ampm = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
   m = m < 10 ? "0" + m : m;
-  if (isToday) return h + ":" + m + " " + ampm;
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  if (isToday) return h + ":" + m + " " + ampm;
   return date.getUTCDate() + " " + months[date.getUTCMonth()] + ", " + h + ":" + m + " " + ampm;
 }
 
