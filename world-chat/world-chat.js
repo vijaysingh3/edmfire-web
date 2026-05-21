@@ -289,8 +289,7 @@ function switchToRoom(roomId) {
   });
 
   // Update status with IST date
-  var istDate = new Date(parseInt(roomId));
-  var istP = getISTParts(istDate);
+  var istP = getISTParts(new Date(parseInt(roomId)));
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   setStatus("Room: " + parseInt(istP.day) + " " + months[parseInt(istP.month) - 1] + " " + istP.year, "online");
 }
@@ -719,8 +718,8 @@ function showAuthError() {
   if (authError) authError.style.display = "flex";
 }
 
-// IST (Indian Standard Time) me time parts nikalna — Intl API se
-// Har device (kisi bhi timezone) pe always correct IST dikhayega
+// IST (Indian Standard Time, UTC+5:30) me convert karna
+// Intl.DateTimeFormat use karta hai — har device pe accurate IST
 function getISTParts(date) {
   var parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",
@@ -740,7 +739,9 @@ function formatTime(timestamp) {
   var ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   m = m < 10 ? "0" + m : m;
-  return h + ":" + m + " " + ampm;
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  // Always show date + month + time
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + ", " + h + ":" + m + " " + ampm;
 }
 
 function formatDateSeparator(timestamp) {
@@ -749,13 +750,10 @@ function formatDateSeparator(timestamp) {
   var p = getISTParts(date);
   var nowP = getISTParts(new Date());
   var isToday = p.year === nowP.year && p.month === nowP.month && p.day === nowP.day;
-
-  // Yesterday check — subtract 1 day from now
   var yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   var yP = getISTParts(yesterday);
   var isYesterday = p.year === yP.year && p.month === yP.month && p.day === yP.day;
-
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   if (isToday) return "Today";
   if (isYesterday) return "Yesterday";

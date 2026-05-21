@@ -176,8 +176,8 @@ function buildFields(fields) {
   return html;
 }
 
-// Helper: Format date — always IST (Indian Standard Time) — Intl API se
-// Har device (kisi bhi timezone) pe always correct IST dikhayega
+// Helper: Format date — always IST (Indian Standard Time, UTC+5:30)
+// Intl.DateTimeFormat use karta hai — har device pe accurate IST
 function getISTParts(date) {
   var parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",
@@ -191,19 +191,21 @@ function getISTParts(date) {
 
 function formatDate(ts) {
   if (!ts) return "";
-  var date;
+  var dateObj;
   if (ts && typeof ts.toDate === "function") {
-    date = ts.toDate();
+    dateObj = ts.toDate();
+  } else if (typeof ts === "number") {
+    dateObj = new Date(ts);
   } else {
-    date = new Date(ts);
+    dateObj = new Date(ts);
   }
-  if (isNaN(date.getTime())) return String(ts);
-  var p = getISTParts(date);
+  if (isNaN(dateObj.getTime())) return String(ts);
+  var p = getISTParts(dateObj);
   var h = parseInt(p.hour); var m = parseInt(p.minute);
+  var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  m = m < 10 ? "0" + m : m;
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + " " + p.year + ", " +
-    (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m +
-    " " + (h >= 12 ? "PM" : "AM");
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + " " + p.year + ", " + h + ":" + m + " " + ap;
 }
 
 // Show error

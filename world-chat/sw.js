@@ -4,7 +4,7 @@
 // API calls aur Firebase config ko cache NAHI karta
 // ============================================
 
-var CACHE_NAME = 'world-chat-v3';
+var CACHE_NAME = 'world-chat-v4';
 
 // Cache karne wali files — ye install time pe cache ho jayengi
 var CACHE_URLS = [

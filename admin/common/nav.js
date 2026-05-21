@@ -242,8 +242,9 @@ function initCommonUI() {
 // ========== UTILITY ==========
 function escapeHtml(t) { var d = document.createElement("div"); d.appendChild(document.createTextNode(t)); return d.innerHTML; }
 
-// IST (Indian Standard Time) me time parts nikalna — Intl API se
-// Har device (kisi bhi timezone) pe always correct IST dikhayega
+// IST (Indian Standard Time, UTC+5:30) me convert karna
+// Har device ki local timezone ignore karke always IST show karega
+// Intl.DateTimeFormat use karta hai — har device pe accurate IST
 function getISTParts(date) {
   var parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",
@@ -257,13 +258,10 @@ function getISTParts(date) {
 
 function formatTime(ts) {
   if (!ts) return "";
-  var date = new Date(ts);
-  var p = getISTParts(date);
-  var now = getISTParts(new Date());
+  var p = getISTParts(new Date(ts));
   var h = parseInt(p.hour); var m = parseInt(p.minute);
   var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; m = m < 10 ? "0" + m : m;
-  var today = p.year === now.year && p.month === now.month && p.day === now.day;
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  if (today) return h + ":" + m + " " + ap;
+  // Always show date + month + time
   return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + ", " + h + ":" + m + " " + ap;
 }
