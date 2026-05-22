@@ -1,13 +1,8 @@
-// User Chat Page Logic — FAST LOADING VERSION
-// Caching system: messages localStorage me cache hote hain
-// Auth optimization: agar already logged in toh re-auth nahi karta
-// Service Worker: static assets cache for instant page load
+// User Chat Page Logic — ULTRA FAST VERSION
+// Fixed: No double auth, single user check, parallel loading
+// Caching: messages localStorage me cache hote hain for instant render
 
 // Height fix: 100vh Android WebView me navigation bar include karta hai
-// isliye CSS me ab height: 100% use kar rahe hai
-// Kotlin me WebView ko navBarHeight ke barabar bottom padding diya hai
-// isse body ka 100% = actual visible screen height (nav bar excluded)
-// ye setAppHeight() sirf EMERGENCY fallback hai
 function setAppHeight() {
   var viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   var bodyH = document.body.scrollHeight;
@@ -26,6 +21,7 @@ var currentUser = null;
 var verifiedUid = null;
 var selectedImageFile = null;
 var isAuthenticating = false;
+var chatInitialized = false; // Prevents double initialization
 var replyingTo = null;
 var contextMsgKey = null;
 var contextMsgData = null;
@@ -33,11 +29,10 @@ var allMessagesData = {};
 var pendingFcmToken = null;
 
 // ============ CACHE SYSTEM ============
-// Messages ko localStorage me cache karte hain — instant UI render
 var CACHE_KEY_MSGS = "uc_cache_msgs_";
 var CACHE_KEY_UID = "uc_cache_uid";
 var CACHE_KEY_TIME = "uc_cache_time";
-var CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache valid
+var CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 function saveMessagesToCache(uid, data) {
   try {
@@ -45,7 +40,7 @@ function saveMessagesToCache(uid, data) {
     localStorage.setItem(CACHE_KEY_UID, uid);
     localStorage.setItem(CACHE_KEY_MSGS + uid, JSON.stringify(data));
     localStorage.setItem(CACHE_KEY_TIME, String(Date.now()));
-  } catch(e) { console.warn("Cache save error:", e); }
+  } catch(e) {}
 }
 
 function loadMessagesFromCache(uid) {
@@ -57,32 +52,8 @@ function loadMessagesFromCache(uid) {
     if (Date.now() - cacheTime > CACHE_DURATION) return null;
     var cached = localStorage.getItem(CACHE_KEY_MSGS + uid);
     if (cached) return JSON.parse(cached);
-  } catch(e) { console.warn("Cache load error:", e); }
+  } catch(e) {}
   return null;
-}
-
-// ============ INSTANT UI FROM CACHE ============
-// Page load hote hi cached messages render karo — Firebase se wait nahi karna
-function renderCachedMessages() {
-  var cachedUid = localStorage.getItem(CACHE_KEY_UID);
-  if (!cachedUid) return false;
-  var cachedData = loadMessagesFromCache(cachedUid);
-  if (!cachedData) return false;
-
-  // Cached messages se UI turant banao
-  verifiedUid = cachedUid;
-  allMessagesData = cachedData;
-  clearChat();
-  var keys = Object.keys(cachedData).sort(function(a, b) {
-    return (cachedData[a].timestamp || 0) - (cachedData[b].timestamp || 0);
-  });
-  for (var i = 0; i < keys.length; i++) {
-    appendMessage(keys[i], cachedData[keys[i]]);
-  }
-  scrollToBottom();
-  if (onlineStatus) { onlineStatus.textContent = "Connecting..."; onlineStatus.style.color = "#fcd34d"; }
-  console.log("[UC-CACHE] Rendered cached messages for:", cachedUid);
-  return true;
 }
 
 // DOM elements
@@ -107,35 +78,37 @@ var ctxCopy = document.getElementById("ctxCopy");
 var ctxDelete = document.getElementById("ctxDelete");
 
 // ============ INSTANT CACHE RENDER ============
-// Page load pe turant cached messages dikha do
-var hasCachedRender = renderCachedMessages();
+// Page load pe turant cached messages dikha do — koi wait nahi
+(function renderCachedMessages() {
+  var cachedUid = localStorage.getItem(CACHE_KEY_UID);
+  if (!cachedUid) return;
+  var cachedData = loadMessagesFromCache(cachedUid);
+  if (!cachedData) return;
 
+  verifiedUid = cachedUid;
+  allMessagesData = cachedData;
+  var keys = Object.keys(cachedData).sort(function(a, b) {
+    return (cachedData[a].timestamp || 0) - (cachedData[b].timestamp || 0);
+  });
+  for (var i = 0; i < keys.length; i++) {
+    appendMessage(keys[i], cachedData[keys[i]]);
+  }
+  scrollToBottom();
+  if (onlineStatus) { onlineStatus.textContent = "Connecting..."; onlineStatus.style.color = "#fcd34d"; }
+  console.log("[UC-CACHE] Instant render from cache, uid:", cachedUid);
+})();
+
+// ============ MAIN AUTH — SINGLE PATH ============
 // Android WebView se auth token receive karna
-// OPTIMIZATION: Agar Firebase already authenticated hai toh re-auth skip karo
+// Ye ONLY auth path hai Android me — initApp() se double auth NAHI hoga
 window.receiveAuthToken = async function(idToken) {
-  if (isAuthenticating) return;
-
-  // Check: Kya Firebase pe already same user logged in hai?
-  var existingUser = firebase.auth().currentUser;
-  if (existingUser && !currentUser) {
-    console.log("[UC-AUTH] Already authenticated as:", existingUser.uid, "— skipping re-auth");
-    currentUser = existingUser;
-    verifiedUid = existingUser.uid;
-    if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
-    showLoading(false);
-    await ensureUserRegistered();
-    loadUserChat();
-    resetUnread(verifiedUid);
-    markMessagesAsSeen(verifiedUid, "user");
-    if (pendingFcmToken) {
-      saveFcmToken(verifiedUid, pendingFcmToken);
-      pendingFcmToken = null;
-    }
+  if (chatInitialized) {
+    console.log("[UC-AUTH] Already initialized, skipping");
     return;
   }
-
-  if (currentUser) return; // already done
+  if (isAuthenticating) return;
   isAuthenticating = true;
+
   if (onlineStatus) { onlineStatus.textContent = "Authenticating..."; onlineStatus.style.color = "#fcd34d"; }
 
   try {
@@ -146,33 +119,64 @@ window.receiveAuthToken = async function(idToken) {
         currentUser = result.user;
         verifiedUid = result.user.uid;
         console.log("[UC-AUTH] Auth success, uid:", verifiedUid);
+        chatInitialized = true;
         if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
-        await ensureUserRegistered();
-        loadUserChat();
-        resetUnread(verifiedUid);
-        markMessagesAsSeen(verifiedUid, "user");
-        if (pendingFcmToken) {
-          saveFcmToken(verifiedUid, pendingFcmToken);
-          pendingFcmToken = null;
-        }
+        showLoading(false);
+        // Parallel: register check + chat load ek saath
+        onAuthComplete();
         return;
       }
     }
-    console.error("[UC-AUTH] Custom token sign in failed");
+    console.error("[UC-AUTH] Sign in failed");
     if (onlineStatus) { onlineStatus.textContent = "Auth failed"; onlineStatus.style.color = "#fca5a5"; }
   } catch (error) {
-    console.error("[UC-AUTH] receiveAuthToken error:", error);
+    console.error("[UC-AUTH] Error:", error);
     if (onlineStatus) { onlineStatus.textContent = "Auth error"; onlineStatus.style.color = "#fca5a5"; }
   } finally {
     isAuthenticating = false;
-    showLoading(false);
   }
 };
+
+// ============ AUTH COMPLETE — PARALLEL LOADING ============
+// ensureUserRegistered + loadUserChat + resetUnread — sab PARALLEL
+function onAuthComplete() {
+  if (!verifiedUid) return;
+
+  // Chat TURANT load karo — registration ke liye wait mat karo
+  loadUserChat();
+
+  // Registration background me check karo
+  ensureUserRegistered();
+
+  // Unread reset + mark seen — parallel
+  resetUnread(verifiedUid);
+  markMessagesAsSeen(verifiedUid, "user");
+
+  // FCM token save karo agar pending hai
+  if (pendingFcmToken) {
+    saveFcmToken(verifiedUid, pendingFcmToken);
+    pendingFcmToken = null;
+  }
+}
+
+// ============ OPTIMIZED: Single user check (NOT all users) ============
+// Pehle: loadUsersOnce() — SAARE users fetch karta tha = SLOW
+// Ab: sirf apna user check karta hai = FAST
+async function ensureUserRegistered() {
+  if (!verifiedUid) return;
+  try {
+    var snapshot = await firebase.database().ref("helpCenter/users/" + verifiedUid).once("value");
+    if (!snapshot.exists()) {
+      await registerUser(verifiedUid, "User_" + verifiedUid.substring(0, 6));
+    }
+  } catch (error) {
+    console.error("[UC] User register check error:", error);
+  }
+}
 
 // Android se FCM token receive karna
 window.receiveFcmToken = function(token) {
   if (!token) return;
-  console.log("[UC-FCM] Token received:", token.substring(0, 20) + "...");
   if (verifiedUid) {
     saveFcmToken(verifiedUid, token);
   } else {
@@ -198,76 +202,33 @@ async function exchangeIdTokenForCustomToken(idToken) {
   }
 }
 
-// app initialize karna — OPTIMIZED: check existing auth first
-async function initApp() {
-  // Agar cache se already render ho chuka hai toh loading mat dikhao
-  if (!hasCachedRender) {
-    showLoading(true);
-  }
-  if (onlineStatus) { onlineStatus.textContent = "Connecting..."; onlineStatus.style.color = "#fcd34d"; }
-
-  // Check: Kya Firebase already authenticated hai?
-  // Ye fast check hai — network call nahi karta
-  var existingUser = firebase.auth().currentUser;
-  if (existingUser && !currentUser) {
-    console.log("[UC-INIT] Firebase already has user:", existingUser.uid);
-    currentUser = existingUser;
-    verifiedUid = existingUser.uid;
-    if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
-    showLoading(false);
-    await ensureUserRegistered();
-    loadUserChat();
-    resetUnread(verifiedUid);
-    markMessagesAsSeen(verifiedUid, "user");
-    if (pendingFcmToken) {
-      saveFcmToken(verifiedUid, pendingFcmToken);
-      pendingFcmToken = null;
-    }
-    return;
-  }
+// ============ FALLBACK: Direct browser access (non-Android) ============
+// Agar Android ne 3 second tak receiveAuthToken nahi call kiya
+// toh onAuthChange se try karo (Firebase persistent auth)
+setTimeout(function() {
+  if (chatInitialized || isAuthenticating) return;
+  console.log("[UC-FALLBACK] Android auth not called, trying Firebase persistent auth");
 
   onAuthChange(function(user) {
-    if (user && !currentUser) {
+    if (user && !chatInitialized) {
       currentUser = user;
       verifiedUid = user.uid;
-      console.log("[UC-INIT] onAuthChange: uid:", verifiedUid);
+      chatInitialized = true;
       if (onlineStatus) { onlineStatus.textContent = "Online"; onlineStatus.style.color = "#86efac"; }
-      ensureUserRegistered().then(function() {
-        loadUserChat();
-        resetUnread(verifiedUid);
-        markMessagesAsSeen(verifiedUid, "user");
-        if (pendingFcmToken) {
-          saveFcmToken(verifiedUid, pendingFcmToken);
-          pendingFcmToken = null;
-        }
-      });
       showLoading(false);
-    } else if (!currentUser) {
+      onAuthComplete();
+    } else if (!chatInitialized) {
       if (onlineStatus) { onlineStatus.textContent = "Waiting for auth..."; onlineStatus.style.color = "#fcd34d"; }
       showLoading(false);
     }
   });
-}
+}, 3000);
 
-// user register check karna
-async function ensureUserRegistered() {
-  if (!verifiedUid) return;
-  try {
-    var data = await loadUsersOnce();
-    if (!data || !data[verifiedUid]) {
-      await registerUser(verifiedUid, "User_" + verifiedUid.substring(0, 6));
-    }
-  } catch (error) {
-    console.error("[UC] User register check error:", error);
-  }
-}
-
-// user chat load karna — OPTIMIZED: cache update in background
+// user chat load karna
 function loadUserChat() {
   if (!verifiedUid) return;
   loadMessages(verifiedUid, function(data) {
     allMessagesData = data || {};
-    // Cache me save karo — next time instant load hoga
     if (data) {
       saveMessagesToCache(verifiedUid, data);
     }
@@ -400,8 +361,7 @@ if (replyClose) {
 // message send karna
 async function sendTextMessage() {
   var text = msgInput.value.trim();
-  if (!text) return;
-  if (!verifiedUid) return;
+  if (!text || !verifiedUid) return;
 
   msgInput.value = "";
   var replyRef = replyingTo;
@@ -440,7 +400,6 @@ async function sendImageMessage() {
       showErrorBubble();
     }
   } catch (error) {
-    console.error("[UC] sendImageMessage error:", error);
     uploadingDiv.remove();
     showErrorBubble();
   }
@@ -455,7 +414,6 @@ function showErrorBubble() {
   scrollToBottom();
 }
 
-// image select karna
 if (imgBtn) { imgBtn.addEventListener("click", function() { if (imageInput) imageInput.click(); }); }
 
 if (imageInput) {
@@ -498,8 +456,6 @@ function scrollToBottom() {
 }
 
 // IST (Indian Standard Time, UTC+5:30) me convert karna
-// Har device ki local timezone ignore karke always IST show karega
-// Intl.DateTimeFormat use karta hai — har device pe accurate IST
 function getISTParts(date) {
   var parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",
@@ -543,4 +499,5 @@ function showLoading(show) {
   }
 }
 
-initApp();
+// NO initApp() call here — receiveAuthToken is the ONLY auth path
+// Fallback: 3-second timeout checks Firebase persistent auth
