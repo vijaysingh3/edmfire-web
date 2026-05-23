@@ -218,48 +218,204 @@ function showError(msg) {
     '</div>';
 }
 
-// ========== APPROVE / REJECT ==========
-function updateApplicationStatus(newStatus) {
-  if (!currentDocId || !firebase.firestore) return;
+// ========== APPROVE / REJECT WITH API ==========
+var MANAGE_HOST_API = "/api/manage-host";
 
-  var db = firebase.firestore();
-  var btn = newStatus === "approved" ? btnApprove : btnReject;
-  var origText = btn.innerHTML;
+// ---------- APPROVE: Open password modal ----------
+function openApproveModal() {
+  var modal = document.getElementById("approveModal");
+  var pwInput = document.getElementById("approvePassword");
+  var emailInput = document.getElementById("approveEmail");
+  if (!modal) return;
+  pwInput.value = "";
+  pwInput.style.borderColor = "";
+  var errEl = document.getElementById("approvePwError");
+  if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+  // Pre-fill the host's email from application data
+  if (emailInput && currentData && currentData.gmail) {
+    emailInput.value = currentData.gmail;
+  }
+  modal.classList.add("active");
+  setTimeout(function() { pwInput.focus(); }, 100);
+}
 
-  btn.innerHTML = '<div class="detail-loading-spinner" style="width:16px;height:16px;border-width:2px;"></div> Updating...';
-  btn.disabled = true;
+function closeApproveModal() {
+  var modal = document.getElementById("approveModal");
+  if (modal) modal.classList.remove("active");
+}
 
-  db.collection("applications").doc(currentDocId).update({
-    status: newStatus,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function() {
-    // Update UI
-    statusBanner.className = "detail-status-banner " + newStatus;
-    statusText.textContent = "Status: " + newStatus.toUpperCase();
-    detailActions.style.display = "none";
-    btn.innerHTML = origText;
-    btn.disabled = false;
-  }).catch(function(error) {
-    alert("Error: " + error.message);
-    btn.innerHTML = origText;
-    btn.disabled = false;
+// ---------- REJECT: Open reason modal ----------
+function openRejectModal() {
+  var modal = document.getElementById("rejectModal");
+  var reasonInput = document.getElementById("rejectReason");
+  if (!modal) return;
+  reasonInput.value = "";
+  modal.classList.add("active");
+  setTimeout(function() { reasonInput.focus(); }, 100);
+}
+
+function closeRejectModal() {
+  var modal = document.getElementById("rejectModal");
+  if (modal) modal.classList.remove("active");
+}
+
+// ---------- APPROVE: Submit to API ----------
+function submitApprove() {
+  if (!currentDocId || !currentData) return;
+
+  var pwInput = document.getElementById("approvePassword");
+  var hostPassword = pwInput.value.trim();
+
+  if (!hostPassword || hostPassword.length < 6) {
+    pwInput.style.borderColor = "#ef4444";
+    var errEl = document.getElementById("approvePwError");
+    errEl.textContent = "Password must be at least 6 characters";
+    errEl.style.display = "block";
+    return;
+  }
+
+  // Get admin email
+  var user = firebase.auth().currentUser;
+  var adminEmail = user ? user.email : "admin@edmfire.com";
+
+  // Show loading on button
+  var submitBtn = document.getElementById("approveSubmitBtn");
+  var origText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '<div class="detail-loading-spinner" style="width:16px;height:16px;border-width:2px;"></div> Creating Account...';
+  submitBtn.disabled = true;
+  btnApprove.disabled = true;
+
+  // Call API
+  fetch(MANAGE_HOST_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "approveHost",
+      applicationId: currentDocId,
+      applicationData: currentData,
+      adminEmail: adminEmail,
+      hostPassword: hostPassword,
+    }),
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success && data.result && data.result.success) {
+      // Update UI
+      statusBanner.className = "detail-status-banner approved";
+      statusText.textContent = "Status: APPROVED";
+      detailActions.style.display = "none";
+      closeApproveModal();
+      showToast("Host approved! Account created successfully.", "success");
+    } else {
+      var errMsg = (data.result && data.result.message) || data.error || "Unknown error";
+      if (data.result && data.result.error === "AUTH_CREATE_FAILED") {
+        showToast("Failed to create Auth account: " + errMsg, "error");
+      } else {
+        showToast("Error: " + errMsg, "error");
+      }
+    }
+  })
+  .catch(function(error) {
+    showToast("Network error: " + error.message, "error");
+  })
+  .finally(function() {
+    submitBtn.innerHTML = origText;
+    submitBtn.disabled = false;
+    btnApprove.disabled = false;
   });
+}
+
+// ---------- REJECT: Submit to API ----------
+function submitReject() {
+  if (!currentDocId) return;
+
+  var reasonInput = document.getElementById("rejectReason");
+  var rejectReason = reasonInput.value.trim();
+
+  // Get admin email
+  var user = firebase.auth().currentUser;
+  var adminEmail = user ? user.email : "admin@edmfire.com";
+
+  // Show loading on button
+  var submitBtn = document.getElementById("rejectSubmitBtn");
+  var origText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '<div class="detail-loading-spinner" style="width:16px;height:16px;border-width:2px;"></div> Rejecting...';
+  submitBtn.disabled = true;
+  btnReject.disabled = true;
+
+  // Call API
+  fetch(MANAGE_HOST_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "rejectHost",
+      applicationId: currentDocId,
+      adminEmail: adminEmail,
+      rejectReason: rejectReason || "No reason provided",
+    }),
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success && data.result && data.result.success) {
+      // Update UI
+      statusBanner.className = "detail-status-banner rejected";
+      statusText.textContent = "Status: REJECTED";
+      detailActions.style.display = "none";
+      closeRejectModal();
+      showToast("Application rejected.", "success");
+    } else {
+      showToast("Error: " + (data.error || "Unknown error"), "error");
+    }
+  })
+  .catch(function(error) {
+    showToast("Network error: " + error.message, "error");
+  })
+  .finally(function() {
+    submitBtn.innerHTML = origText;
+    submitBtn.disabled = false;
+    btnReject.disabled = false;
+  });
+}
+
+// ---------- Toast notification ----------
+function showToast(message, type) {
+  var existing = document.getElementById("appToast");
+  if (existing) existing.remove();
+
+  var toast = document.createElement("div");
+  toast.id = "appToast";
+  toast.className = "toast-notification toast-" + (type || "info");
+
+  var icon = "";
+  if (type === "success") {
+    icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+  } else if (type === "error") {
+    icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+  } else {
+    icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+  }
+
+  toast.innerHTML = icon + '<span>' + escapeHtml(message) + '</span>';
+  document.body.appendChild(toast);
+
+  setTimeout(function() {
+    if (toast.parentNode) {
+      toast.classList.add("toast-fade");
+      setTimeout(function() { if (toast.parentNode) toast.remove(); }, 400);
+    }
+  }, 4000);
 }
 
 // ========== EVENT LISTENERS ==========
 if (btnApprove) {
   btnApprove.addEventListener("click", function() {
-    if (confirm("Approve this application?")) {
-      updateApplicationStatus("approved");
-    }
+    openApproveModal();
   });
 }
 
 if (btnReject) {
   btnReject.addEventListener("click", function() {
-    if (confirm("Reject this application?")) {
-      updateApplicationStatus("rejected");
-    }
+    openRejectModal();
   });
 }
 

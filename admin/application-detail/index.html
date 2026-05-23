@@ -127,6 +127,63 @@
     <div class="loading-spinner"></div>
   </div>
 
+  <!-- Approve Modal (Password Input) -->
+  <div class="modal-overlay" id="approveModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <h3>Approve Host Application</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Set a password for the host's new Firebase Auth account. The host will use this email and password to log in.</p>
+        <div class="modal-field">
+          <label class="modal-label" for="approvePassword">Host Email</label>
+          <input type="text" id="approveEmail" class="modal-input" disabled>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" for="approvePassword">New Password</label>
+          <input type="text" id="approvePassword" class="modal-input" placeholder="Enter password (min 6 characters)" autocomplete="new-password">
+          <span class="modal-error" id="approvePwError" style="display:none;"></span>
+        </div>
+        <div class="modal-info">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>If this email already has a Firebase Auth account, the old account and its data will be deleted and replaced with the new one.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-cancel" onclick="closeApproveModal()">Cancel</button>
+        <button class="modal-btn modal-btn-approve" id="approveSubmitBtn" onclick="submitApprove()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Approve & Create Account
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Modal (Reason Input) -->
+  <div class="modal-overlay" id="rejectModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <h3>Reject Application</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Provide a reason for rejecting this application (optional but recommended).</p>
+        <div class="modal-field">
+          <label class="modal-label" for="rejectReason">Rejection Reason</label>
+          <textarea id="rejectReason" class="modal-textarea" placeholder="Enter reason for rejection..." rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-cancel" onclick="closeRejectModal()">Cancel</button>
+        <button class="modal-btn modal-btn-reject" id="rejectSubmitBtn" onclick="submitReject()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Reject Application
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>

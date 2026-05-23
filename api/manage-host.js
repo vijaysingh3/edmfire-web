@@ -48,7 +48,9 @@ async function checkEmail(email) {
 }
 
 // ===================================================
-// APPROVE HOST: Create Auth + store in hosts + update application
+// APPROVE HOST: Delete old account if exists + Create new Auth + store in hosts + update application
+// If email already exists: delete old Auth user, delete Users/{oldUid}, hosts/{oldUid}, hostCredentials/{oldUid}
+// Then create fresh Auth account with admin-provided password
 // ===================================================
 async function approveHost(data) {
   const { applicationId, applicationData, adminEmail, hostPassword } = data;
@@ -72,12 +74,39 @@ async function approveHost(data) {
 
   // Step 1: Check if email already exists in Auth
   const emailCheck = await checkEmail(gmail);
+  let oldUid = null;
+
   if (emailCheck.exists) {
-    return {
-      success: false,
-      error: "EMAIL_ALREADY_REGISTERED",
-      message: "This email is already registered in Firebase Auth. Cannot create duplicate account.",
-    };
+    oldUid = emailCheck.uid;
+
+    // Delete old data associated with the previous account
+    const deleteOps = [];
+
+    // Delete Users/{oldUid} document
+    deleteOps.push(
+      firestore.collection("Users").doc(oldUid).delete().catch(() => {})
+    );
+
+    // Delete hosts/{oldUid} document
+    deleteOps.push(
+      firestore.collection("hosts").doc(oldUid).delete().catch(() => {})
+    );
+
+    // Delete hostCredentials/{oldUid} document
+    deleteOps.push(
+      firestore.collection("hostCredentials").doc(oldUid).delete().catch(() => {})
+    );
+
+    // Wait for all Firestore deletes
+    await Promise.all(deleteOps);
+
+    // Delete the old Firebase Auth user
+    try {
+      await auth.deleteUser(oldUid);
+    } catch (delErr) {
+      console.error("Failed to delete old auth user:", delErr.message);
+      // Continue anyway — the old user might already be gone
+    }
   }
 
   // Step 2: Create new Auth account with admin-provided password
@@ -166,9 +195,12 @@ async function approveHost(data) {
 
   return {
     success: true,
-    message: "Host approved and account created successfully",
+    message: oldUid
+      ? "Old account deleted, new host account created successfully"
+      : "Host approved and account created successfully",
     hostUid: newUser.uid,
     hostEmail: gmail,
+    replacedOldUid: oldUid || null,
   };
 }
 
