@@ -11,6 +11,140 @@ var statWithdrawals = document.getElementById("statWithdrawals");
 var activityList = document.getElementById("activityList");
 var navChatBadge = document.getElementById("navChatBadge");
 
+// Financial overview elements
+var financeTotalDeposit = document.getElementById("financeTotalDeposit");
+var financeTotalWithdrawal = document.getElementById("financeTotalWithdrawal");
+var financeNetWorth = document.getElementById("financeNetWorth");
+var financeDepositTxns = document.getElementById("financeDepositTxns");
+var financeWithdrawalTxns = document.getElementById("financeWithdrawalTxns");
+var financeDepositLast = document.getElementById("financeDepositLast");
+var financeWithdrawalLast = document.getElementById("financeWithdrawalLast");
+
+// ========== PAYMENT SYSTEM HELPERS ==========
+function paisaToRupees(paisa) {
+  if (paisa === null || paisa === undefined) return 0;
+  return paisa / 100.0;
+}
+
+function formatRupees(paisa) {
+  var rupees = paisaToRupees(paisa);
+  if (rupees % 1 === 0) {
+    return "₹" + Math.round(rupees).toLocaleString("en-IN");
+  }
+  var formatted = rupees.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "₹" + formatted;
+}
+
+function formatTimestampShort(ts) {
+  if (!ts) return "--";
+  var dateObj;
+  if (typeof ts.toDate === "function") {
+    dateObj = ts.toDate();
+  } else if (ts && ts.seconds) {
+    dateObj = new Date(ts.seconds * 1000);
+  } else if (typeof ts === "number") {
+    dateObj = new Date(ts);
+  } else {
+    dateObj = new Date(ts);
+  }
+  if (isNaN(dateObj.getTime())) return "--";
+  var p = getISTParts(dateObj);
+  var h = parseInt(p.hour); var m = parseInt(p.minute);
+  var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  m = m < 10 ? "0" + m : m;
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return parseInt(p.day) + " " + months[parseInt(p.month) - 1] + ", " + h + ":" + m + " " + ap;
+}
+
+function getISTParts(date) {
+  var parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", hour12: false
+  }).formatToParts(date);
+  var p = {};
+  for (var i = 0; i < parts.length; i++) p[parts[i].type] = parts[i].value;
+  return p;
+}
+
+// ========== LOAD FINANCIAL OVERVIEW ==========
+function loadFinancialOverview() {
+  if (!firebase.firestore) return;
+  var db = firebase.firestore();
+
+  // Load TotalDeposit/Amount
+  db.collection("TotalDeposit").doc("Amount").get().then(function(doc) {
+    if (doc.exists) {
+      var data = doc.data();
+      var totalPaisa = data.total || 0;
+      var totalRupees = paisaToRupees(totalPaisa);
+      var currency = data.currency || "INR";
+
+      if (financeTotalDeposit) {
+        financeTotalDeposit.innerHTML = '<span class="finance-amount">' + formatRupees(totalPaisa) + '</span> <span class="finance-currency">' + escapeHtml(currency) + '</span>';
+      }
+      if (financeDepositTxns) financeDepositTxns.textContent = data.totalTransactions || 0;
+      if (financeDepositLast) financeDepositLast.textContent = formatTimestampShort(data.lastUpdated);
+
+      // Calculate Net Worth after both deposit & withdrawal are loaded
+      updateNetWorth(totalPaisa);
+    }
+  }).catch(function(err) {
+    console.error("TotalDeposit fetch error:", err);
+    if (financeTotalDeposit) {
+      financeTotalDeposit.innerHTML = '<span class="finance-amount" style="color:#ef4444;">Error</span>';
+    }
+  });
+
+  // Load TotalWithdrawal/Amount
+  db.collection("TotalWithdrawal").doc("Amount").get().then(function(doc) {
+    if (doc.exists) {
+      var data = doc.data();
+      var totalPaisa = data.total || 0;
+      var currency = data.currency || "INR";
+
+      if (financeTotalWithdrawal) {
+        financeTotalWithdrawal.innerHTML = '<span class="finance-amount">' + formatRupees(totalPaisa) + '</span> <span class="finance-currency">' + escapeHtml(currency) + '</span>';
+      }
+      if (financeWithdrawalTxns) financeWithdrawalTxns.textContent = data.totalTransactions || 0;
+      if (financeWithdrawalLast) financeWithdrawalLast.textContent = formatTimestampShort(data.lastUpdated);
+
+      // Store withdrawal total for Net Worth calc
+      window._withdrawalTotalPaisa = totalPaisa;
+      updateNetWorth(window._depositTotalPaisa || 0);
+    }
+  }).catch(function(err) {
+    console.error("TotalWithdrawal fetch error:", err);
+    if (financeTotalWithdrawal) {
+      financeTotalWithdrawal.innerHTML = '<span class="finance-amount" style="color:#ef4444;">Error</span>';
+    }
+  });
+}
+
+function updateNetWorth(depositPaisa) {
+  window._depositTotalPaisa = depositPaisa;
+  var withdrawalPaisa = window._withdrawalTotalPaisa || 0;
+  var netPaisa = depositPaisa - withdrawalPaisa;
+
+  if (financeNetWorth) {
+    var isPositive = netPaisa >= 0;
+    var sign = isPositive ? "" : "-";
+    var absNetPaisa = Math.abs(netPaisa);
+    var netRupees = paisaToRupees(absNetPaisa);
+
+    var formatted;
+    if (netRupees % 1 === 0) {
+      formatted = Math.round(netRupees).toLocaleString("en-IN");
+    } else {
+      formatted = netRupees.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    financeNetWorth.innerHTML = '<span class="finance-amount">' + sign + "₹" + formatted + '</span> <span class="finance-currency">INR</span>';
+    financeNetWorth.querySelector(".finance-amount").style.color = isPositive ? "#10b981" : "#ef4444";
+  }
+}
+
+// ========== LOAD DASHBOARD STATS ==========
 function loadDashboardStats() {
   loadUsers(function(data) {
     var usersData = data || {};
@@ -48,6 +182,9 @@ function loadDashboardStats() {
 
   // Load withdrawal requests count from Firestore
   loadWithdrawalCount();
+
+  // Load financial overview
+  loadFinancialOverview();
 }
 
 function loadHostAppsCount() {

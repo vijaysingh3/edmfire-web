@@ -105,6 +105,61 @@
           <p class="page-subtitle">Overview of your platform</p>
         </div>
 
+        <!-- Financial Overview -->
+        <div class="finance-overview" id="financeOverview">
+          <div class="finance-card finance-deposit">
+            <div class="finance-card-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </div>
+            <div class="finance-card-body">
+              <div class="finance-card-label">Total Deposit</div>
+              <div class="finance-card-value" id="financeTotalDeposit">
+                <span class="finance-amount">--</span>
+                <span class="finance-currency">INR</span>
+              </div>
+              <div class="finance-card-meta">
+                <span id="financeDepositTxns">0</span> transactions
+                <span class="finance-meta-sep">|</span>
+                Last: <span id="financeDepositLast">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="finance-card finance-withdrawal">
+            <div class="finance-card-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            </div>
+            <div class="finance-card-body">
+              <div class="finance-card-label">Total Withdrawal</div>
+              <div class="finance-card-value" id="financeTotalWithdrawal">
+                <span class="finance-amount">--</span>
+                <span class="finance-currency">INR</span>
+              </div>
+              <div class="finance-card-meta">
+                <span id="financeWithdrawalTxns">0</span> transactions
+                <span class="finance-meta-sep">|</span>
+                Last: <span id="financeWithdrawalLast">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="finance-card finance-networth">
+            <div class="finance-card-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div class="finance-card-body">
+              <div class="finance-card-label">Net Worth</div>
+              <div class="finance-card-value" id="financeNetWorth">
+                <span class="finance-amount">--</span>
+                <span class="finance-currency">INR</span>
+              </div>
+              <div class="finance-card-meta">
+                Deposit - Withdrawal
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon" style="background:linear-gradient(135deg,#5b4cc4,#7c6cf0);">
