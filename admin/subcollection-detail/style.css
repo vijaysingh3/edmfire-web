@@ -1,0 +1,209 @@
+/* ============================================
+   EDMFire Admin - SubCollection Detail Styles
+   ============================================ */
+
+/* ========== Header ========== */
+.detail-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 20px;
+}
+
+.detail-back-btn {
+  display: flex; align-items: center; gap: 6px;
+  color: #7c7f96; font-size: 14px; font-weight: 500;
+  text-decoration: none; padding: 8px 14px;
+  border-radius: 10px; background: #1a1d2e;
+  border: 1px solid #252840; transition: all 0.15s;
+}
+
+.detail-back-btn:hover {
+  color: #7c6cf0; border-color: #7c6cf0;
+  background: rgba(124, 108, 240, 0.08);
+}
+
+/* ========== Info Banner ========== */
+.info-banner {
+  background: #1a1d2e; border-radius: 12px; padding: 14px 20px;
+  border: 1px solid #252840; margin-bottom: 20px;
+  display: flex; gap: 24px; flex-wrap: wrap;
+}
+
+.info-banner-row {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.info-banner-label {
+  font-size: 11px; font-weight: 600; color: #5a5d72;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+
+.info-banner-value {
+  font-size: 13px; color: #e8e9f0; font-weight: 500;
+}
+
+/* ========== Loading ========== */
+.detail-loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 60px 20px; color: #5a5d72; font-size: 14px;
+}
+
+.detail-loading-spinner {
+  width: 20px; height: 20px; border: 2px solid #2a2d42;
+  border-top-color: #7c6cf0; border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ========== Empty State ========== */
+.items-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 20px; gap: 12px;
+}
+
+.items-empty p { font-size: 14px; color: #5a5d72; }
+
+/* ========== Error State ========== */
+.detail-error {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 20px; gap: 12px;
+}
+
+.detail-error h2 { font-size: 18px; color: #ef4444; }
+
+/* ========== Item Card ========== */
+.item-card {
+  background: #1a1d2e; border-radius: 14px; padding: 18px;
+  border: 1px solid #252840; margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: border-color 0.15s;
+}
+
+.item-card:hover { border-color: #3a3d52; }
+
+.item-card-top {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+}
+
+.item-card-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.match-icon {
+  background: rgba(124, 108, 240, 0.1); color: #7c6cf0;
+}
+
+.deposit-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.joining-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.winning-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.refund-icon { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.withdrawal-icon { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.bonus-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.other-icon { background: rgba(124, 108, 240, 0.1); color: #7c6cf0; }
+
+.item-card-info { flex: 1; min-width: 0; }
+
+.item-card-title {
+  font-size: 14px; font-weight: 600; color: #e8e9f0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.item-card-subtitle {
+  font-size: 11px; color: #5a5d72; margin-top: 2px;
+  font-family: 'Poppins', monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ========== Status Badge ========== */
+.item-status {
+  padding: 3px 10px; border-radius: 8px; font-size: 11px;
+  font-weight: 600; text-transform: capitalize; flex-shrink: 0;
+}
+
+.item-status.joined {
+  background: rgba(16, 185, 129, 0.1); color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.item-status.completed {
+  background: rgba(59, 130, 246, 0.1); color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.item-status.left {
+  background: rgba(239, 68, 68, 0.1); color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* ========== Amount Badge ========== */
+.item-amount {
+  font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+
+.item-amount.deposit { color: #10b981; }
+.item-amount.joining { color: #f59e0b; }
+.item-amount.winning { color: #10b981; }
+.item-amount.refund { color: #3b82f6; }
+.item-amount.withdrawal { color: #ef4444; }
+.item-amount.bonus { color: #f59e0b; }
+.item-amount.other { color: #7c7f96; }
+
+/* ========== Fields Grid ========== */
+.item-card-fields {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px; padding-top: 12px;
+  border-top: 1px solid #252840;
+}
+
+.item-field {
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.item-field-label {
+  font-size: 10px; font-weight: 600; color: #5a5d72;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+
+.item-field-value {
+  font-size: 13px; color: #d8dae5; font-weight: 500;
+  word-break: break-word;
+}
+
+/* Value type classes */
+.item-field-value.coins {
+  color: #10b981; font-weight: 600;
+}
+
+.item-field-value.mono {
+  font-family: 'Poppins', monospace; font-size: 12px; color: #9d8cf8;
+}
+
+.item-field-value.time {
+  color: #f59e0b; font-size: 12px;
+}
+
+.item-field-value.success {
+  color: #10b981; font-weight: 600;
+}
+
+.item-field-value.warning {
+  color: #f59e0b; font-weight: 600;
+}
+
+.item-field-value.error {
+  color: #ef4444; font-weight: 600;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .info-banner { flex-direction: column; gap: 8px; }
+  .item-card-fields { grid-template-columns: 1fr 1fr; }
+  .item-card-top { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .item-card-fields { grid-template-columns: 1fr; }
+  .item-amount { font-size: 14px; }
+}

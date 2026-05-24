@@ -17,8 +17,27 @@ var isEditMode = false;
 // Fields that should not be editable
 var READ_ONLY_FIELDS = ["createdAt", "JoinedAt", "deviceId", "fcmToken", "fcmTokenUpdatedAt", "lastLogin", "lastLoginDate", "lastLoginTime", "lastUpdated", "loginCount"];
 
+// Payment system: Database stores PAISA (Integer), UI shows RUPEES/Coins (with decimal)
+var COIN_FIELDS = ["TopUpCoins", "MyReferralBonus", "bonusCoins", "totalCoins"];
+
 // SubCollections
-var SUBCOLLECTIONS = ["JoinedMatches", "Notifications", "TransactionHistory"];
+var SUBCOLLECTIONS = ["JoinedMatches", "TransactionHistory"];
+
+// SubCollection display config
+var SUBCOLLECTION_CONFIG = {
+  "JoinedMatches": {
+    label: "Joined Matches",
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="16" cy="10" r="1"/><circle cx="18" cy="12" r="1"/></svg>',
+    color: "#7c6cf0",
+    desc: "Tournaments the user has joined"
+  },
+  "TransactionHistory": {
+    label: "Transaction History",
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+    color: "#10b981",
+    desc: "Deposits, withdrawals, winnings, refunds & bonuses"
+  }
+};
 
 // Get UID from URL params
 function getUid() {
@@ -93,7 +112,7 @@ function renderFields(data) {
 
     var value = data[key];
     var isReadOnly = READ_ONLY_FIELDS.indexOf(key) !== -1;
-    var displayValue = formatFieldValue(value);
+    var displayValue = formatFieldValue(value, key);
     var inputType = getInputType(value);
 
     html += '<div class="field-row" data-key="' + escapeHtml(key) + '">';
@@ -129,9 +148,28 @@ function renderFields(data) {
 }
 
 // ========== FORMAT FIELD VALUE ==========
-function formatFieldValue(value) {
+// Payment system: paisa to rupees for coin fields
+function paisaToRupees(paisa) {
+  if (paisa === null || paisa === undefined) return 0;
+  return paisa / 100.0;
+}
+
+function formatCoins(paisa) {
+  var rupees = paisaToRupees(paisa);
+  if (rupees % 1 === 0) {
+    return Math.round(rupees) + " Coins";
+  }
+  var formatted = rupees.toFixed(2).replace(/\.?0+$/, "");
+  return formatted + " Coins";
+}
+
+function formatFieldValue(value, key) {
   if (value === null || value === undefined) {
     return '<span class="null-value">null</span>';
+  }
+  // Payment system: Show Coins for coin fields
+  if (key && COIN_FIELDS.indexOf(key) !== -1 && typeof value === "number") {
+    return '<span class="coins-value">' + escapeHtml(formatCoins(value)) + '</span>';
   }
   if (typeof value === "boolean") {
     return value ? '<span class="bool-true">true</span>' : '<span class="bool-false">false</span>';
@@ -288,102 +326,57 @@ function loadSubCollections() {
       '<span>Loading subcollections...</span>' +
     '</div>';
 
-  var html = "";
+  var db = firebase.firestore();
+  var countPromises = [];
+
+  // Fetch counts for each subcollection
+  for (var i = 0; i < SUBCOLLECTIONS.length; i++) {
+    (function(name) {
+      countPromises.push(
+        db.collection("Users").doc(currentUid).collection(name).get().then(function(snapshot) {
+          return { name: name, count: snapshot.size };
+        }).catch(function(err) {
+          return { name: name, count: 0, error: err.message };
+        })
+      );
+    })(SUBCOLLECTIONS[i]);
+  }
+
+  Promise.all(countPromises).then(function(results) {
+    var countMap = {};
+    for (var r = 0; r < results.length; r++) {
+      countMap[results[r].name] = results[r].count;
+    }
+    renderSubCollectionButtons(countMap);
+  });
+}
+
+function renderSubCollectionButtons(countMap) {
+  var html = '<div class="subcollection-buttons">';
 
   for (var i = 0; i < SUBCOLLECTIONS.length; i++) {
-    var subName = SUBCOLLECTIONS[i];
-    html += buildSubCollectionCard(subName);
+    var name = SUBCOLLECTIONS[i];
+    var config = SUBCOLLECTION_CONFIG[name];
+    var count = countMap[name] || 0;
+
+    html += '<a class="subcollection-btn" href="/admin/subcollection-detail/?uid=' + encodeURIComponent(currentUid) + '&collection=' + encodeURIComponent(name) + '">';
+    html += '<div class="subcollection-btn-icon" style="background:' + config.color + '15;color:' + config.color + ';">';
+    html += config.icon;
+    html += '</div>';
+    html += '<div class="subcollection-btn-info">';
+    html += '<div class="subcollection-btn-title">' + escapeHtml(config.label) + '</div>';
+    html += '<div class="subcollection-btn-desc">' + escapeHtml(config.desc) + '</div>';
+    html += '</div>';
+    html += '<div class="subcollection-btn-count">';
+    html += '<span class="count-number">' + count + '</span>';
+    html += '<span class="count-label">items</span>';
+    html += '</div>';
+    html += '<svg class="subcollection-btn-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+    html += '</a>';
   }
 
+  html += '</div>';
   subcollectionList.innerHTML = html;
-
-  // Load each subcollection data
-  for (var j = 0; j < SUBCOLLECTIONS.length; j++) {
-    loadSubCollectionData(SUBCOLLECTIONS[j]);
-  }
-}
-
-function buildSubCollectionCard(name) {
-  return '<div class="subcollection-card" id="subcard_' + name + '">' +
-    '<div class="subcollection-header" onclick="toggleSubCollection(\'' + name + '\')">' +
-      '<div class="subcollection-title">' +
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c6cf0" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>' +
-        escapeHtml(name) +
-      '</div>' +
-      '<div class="subcollection-toggle">' +
-        '<span class="subcollection-count" id="subcount_' + name + '">0</span>' +
-        '<svg class="toggle-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
-      '</div>' +
-    '</div>' +
-    '<div class="subcollection-body" id="subbody_' + name + '" style="display:none;">' +
-      '<div class="detail-loading"><div class="detail-loading-spinner"></div><span>Loading...</span></div>' +
-    '</div>' +
-  '</div>';
-}
-
-function toggleSubCollection(name) {
-  var body = document.getElementById("subbody_" + name);
-  var card = document.getElementById("subcard_" + name);
-
-  if (body.style.display === "none") {
-    body.style.display = "block";
-    card.classList.add("expanded");
-  } else {
-    body.style.display = "none";
-    card.classList.remove("expanded");
-  }
-}
-
-function loadSubCollectionData(name) {
-  var db = firebase.firestore();
-  var countEl = document.getElementById("subcount_" + name);
-  var bodyEl = document.getElementById("subbody_" + name);
-
-  db.collection("Users").doc(currentUid).collection(name).get().then(function(snapshot) {
-    var count = snapshot.size;
-    if (countEl) countEl.textContent = count;
-
-    if (snapshot.empty) {
-      bodyEl.innerHTML = '<div class="subcollection-empty">No documents in ' + escapeHtml(name) + '</div>';
-      return;
-    }
-
-    var html = "";
-    var docCount = 0;
-    var MAX_DOCS = 50;
-
-    snapshot.forEach(function(doc) {
-      if (docCount >= MAX_DOCS) return;
-      docCount++;
-
-      var data = doc.data();
-      var docId = doc.id;
-      var fields = Object.keys(data);
-
-      html += '<div class="subcollection-doc">';
-      html += '<div class="subcollection-doc-id">ID: ' + escapeHtml(docId) + '</div>';
-      html += '<div class="subcollection-doc-fields">';
-
-      for (var i = 0; i < fields.length; i++) {
-        var key = fields[i];
-        var value = data[key];
-        html += '<div class="subcollection-doc-field">';
-        html += '<span class="subcollection-doc-key">' + escapeHtml(key) + '</span>';
-        html += '<span class="subcollection-doc-value">' + formatFieldValue(value) + '</span>';
-        html += '</div>';
-      }
-
-      html += '</div></div>';
-    });
-
-    if (snapshot.size > MAX_DOCS) {
-      html += '<div class="subcollection-more">Showing ' + MAX_DOCS + ' of ' + snapshot.size + ' documents</div>';
-    }
-
-    bodyEl.innerHTML = html;
-  }).catch(function(err) {
-    bodyEl.innerHTML = '<div class="subcollection-error">Error loading: ' + escapeHtml(err.message) + '</div>';
-  });
 }
 
 // ========== FORMAT DATE (IST) ==========
