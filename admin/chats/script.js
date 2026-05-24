@@ -2,6 +2,7 @@
 // EDMFire Admin - Support Chats Logic
 // With sidebar toggle + mobile WhatsApp pattern
 // Smart auto-close system
+// Firestore UserName enrichment
 // ============================================
 
 var selectedUserUid = null;
@@ -12,6 +13,9 @@ var contextMsgKey = null;
 var contextMsgData = null;
 var allMessagesData = {};
 var isMobile = window.innerWidth <= 768;
+
+// Firestore UserName cache: uid -> UserName
+var firestoreUserNames = {};
 
 // Chat DOM elements
 var userList = document.getElementById("userList");
@@ -145,11 +149,71 @@ window.addEventListener("resize", function() {
   chatPrevWidth = currentWidth;
 });
 
+// ========== FIRESTORE USERNAME ENRICHMENT ==========
+// Fetch UserName from Firestore Users/{uid} for each RTDB helpCenter user
+function enrichUserNamesFromFirestore(uids) {
+  if (!firebase.firestore || !uids || uids.length === 0) return;
+
+  var db = firebase.firestore();
+  var promises = [];
+
+  for (var i = 0; i < uids.length; i++) {
+    (function(uid) {
+      // Skip if already cached
+      if (firestoreUserNames[uid] !== undefined) return;
+
+      promises.push(
+        db.collection("Users").doc(uid).get().then(function(doc) {
+          if (doc.exists && doc.data().UserName) {
+            firestoreUserNames[uid] = doc.data().UserName;
+          } else {
+            firestoreUserNames[uid] = null; // Mark as checked but not found
+          }
+        }).catch(function(err) {
+          console.warn("Firestore UserName fetch error for", uid, err);
+          firestoreUserNames[uid] = null;
+        })
+      );
+    })(uids[i]);
+  }
+
+  // Re-render user list after all Firestore lookups complete
+  if (promises.length > 0) {
+    Promise.all(promises).then(function() {
+      renderUserList(usersData);
+      // Also update chat header if a user is selected
+      if (selectedUserUid && firestoreUserNames[selectedUserUid]) {
+        chatHeaderName.textContent = firestoreUserNames[selectedUserUid];
+      }
+    });
+  }
+}
+
+// Get the best display name for a user
+function getDisplayName(uid, rtdbUser) {
+  // Priority: Firestore UserName > RTDB username > UID-based fallback
+  if (firestoreUserNames[uid]) {
+    return firestoreUserNames[uid];
+  }
+  if (rtdbUser.username && rtdbUser.username !== "Unknown" && rtdbUser.username.indexOf("User_") !== 0) {
+    return rtdbUser.username;
+  }
+  // Fallback: Show "User_XXXX" as is (from RTDB)
+  if (rtdbUser.username) {
+    return rtdbUser.username;
+  }
+  return "Unknown";
+}
+
 // ========== LOAD USERS ==========
 function loadUsersList() {
   loadUsers(function(data) {
     usersData = data || {};
     renderUserList(usersData);
+
+    // Enrich with Firestore UserNames
+    var uids = Object.keys(usersData);
+    enrichUserNamesFromFirestore(uids);
   });
 }
 
@@ -169,12 +233,13 @@ function renderUserList(data) {
   for (var i = 0; i < sorted.length; i++) {
     (function(uid) {
       var user = data[uid];
+      var displayName = getDisplayName(uid, user);
       var div = document.createElement("div");
       div.className = "user-item" + (uid === selectedUserUid ? " active" : "");
       div.setAttribute("data-uid", uid);
-      var initial = (user.username || "U").charAt(0).toUpperCase();
+      var initial = displayName.charAt(0).toUpperCase();
       var unread = user.unreadMsg || 0;
-      div.innerHTML = '<div class="user-item-content"><div class="user-avatar">' + initial + '</div><div class="user-info"><div class="user-name">' + escapeHtml(user.username || "Unknown") + '</div><div class="last-msg">' + (unread > 0 ? unread + " new" : "No new messages") + '</div></div></div>' + (unread > 0 ? '<div class="badge">' + unread + "</div>" : "");
+      div.innerHTML = '<div class="user-item-content"><div class="user-avatar">' + initial + '</div><div class="user-info"><div class="user-name">' + escapeHtml(displayName) + '</div><div class="last-msg">' + (unread > 0 ? unread + " new" : "No new messages") + '</div></div></div>' + (unread > 0 ? '<div class="badge">' + unread + "</div>" : "");
       div.addEventListener("click", function() { selectUser(uid, user); });
       userList.appendChild(div);
     })(sorted[i]);
@@ -183,8 +248,9 @@ function renderUserList(data) {
 
 function selectUser(uid, userData) {
   selectedUserUid = uid;
-  chatHeaderName.textContent = userData.username || "Unknown";
-  chatHeaderStatus.textContent = "UID: " + uid.substring(0, 8) + "...";
+  var displayName = getDisplayName(uid, userData);
+  chatHeaderName.textContent = displayName;
+  chatHeaderStatus.innerHTML = '<span class="chat-uid-text" title="Click to copy UID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' + escapeHtml(uid) + '</span> <button class="chat-uid-copy-btn" onclick="copyUserId(\'' + escapeHtml(uid) + '\')" title="Copy User ID"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
   chatInputBar.style.display = "flex";
 
   // Update active state
@@ -202,6 +268,53 @@ function selectUser(uid, userData) {
   resetUnread(uid);
   markMessagesAsSeen(uid, "admin");
   loadSelectedUserChat(uid);
+}
+
+// ========== COPY USER ID ==========
+function copyUserId(uid) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(uid).then(function() {
+      showChatToast("User ID copied!");
+    }).catch(function() {
+      // Fallback
+      fallbackCopy(uid);
+    });
+  } else {
+    fallbackCopy(uid);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+    showChatToast("User ID copied!");
+  } catch (e) {
+    showChatToast("Copy failed");
+  }
+  document.body.removeChild(ta);
+}
+
+// Small toast for copy feedback
+function showChatToast(message) {
+  var existing = document.getElementById("chatToast");
+  if (existing) existing.remove();
+
+  var toast = document.createElement("div");
+  toast.id = "chatToast";
+  toast.className = "chat-toast-notification";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(function() {
+    toast.classList.add("chat-toast-fade");
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 400);
+  }, 2000);
 }
 
 function loadSelectedUserChat(uid) {
@@ -356,7 +469,13 @@ searchInput.addEventListener("input", function(e) {
   var q = e.target.value.toLowerCase().trim();
   if (!q) { renderUserList(usersData); return; }
   var filtered = {}; var keys = Object.keys(usersData);
-  for (var i = 0; i < keys.length; i++) { var u = usersData[keys[i]]; if ((u.username || "").toLowerCase().indexOf(q) !== -1) filtered[keys[i]] = u; }
+  for (var i = 0; i < keys.length; i++) {
+    var uid = keys[i];
+    var displayName = getDisplayName(uid, usersData[uid]);
+    if (displayName.toLowerCase().indexOf(q) !== -1 || uid.toLowerCase().indexOf(q) !== -1) {
+      filtered[uid] = usersData[uid];
+    }
+  }
   renderUserList(filtered);
 });
 

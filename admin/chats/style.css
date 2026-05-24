@@ -146,7 +146,46 @@
 
 .chat-main-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .chat-main-name { font-size: 15px; font-weight: 600; color: #e8e9f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-main-status { font-size: 12px; color: #5a5d72; }
+.chat-main-status { font-size: 12px; color: #5a5d72; display: flex; align-items: center; gap: 6px; }
+
+/* UID copy button in chat header */
+.chat-uid-text {
+  font-family: 'Poppins', monospace; font-size: 11px; color: #9d8cf8;
+  cursor: pointer; word-break: break-all;
+  transition: color 0.15s;
+}
+.chat-uid-text:hover { color: #7c6cf0; text-decoration: underline; }
+
+.chat-uid-copy-btn {
+  width: 24px; height: 24px; border: none; border-radius: 6px;
+  background: #252840; cursor: pointer; color: #7c7f96;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s; padding: 0;
+}
+.chat-uid-copy-btn:hover { background: #2a2d42; color: #7c6cf0; }
+.chat-uid-copy-btn:active { transform: scale(0.9); }
+
+/* Chat toast for copy feedback */
+.chat-toast-notification {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  padding: 8px 18px; border-radius: 20px;
+  background: rgba(124, 108, 240, 0.9); color: #fff;
+  font-size: 12px; font-weight: 600; z-index: 3000;
+  font-family: 'Poppins', sans-serif;
+  animation: chatToastIn 0.2s ease-out;
+  pointer-events: none;
+}
+@keyframes chatToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.chat-toast-fade {
+  animation: chatToastOut 0.3s ease-in forwards;
+}
+@keyframes chatToastOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 
 .chat-messages {
   flex: 1;
