@@ -3,21 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>EDMFire Admin - Dashboard</title>
+  <title>EDMFire Admin - Users Management</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../common/layout.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
   <div class="dashboard">
     <!-- Mobile Top Bar -->
     <div class="mobile-topbar">
       <button class="hamburger-btn" id="hamburgerBtn">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <span class="mobile-topbar-title">Dashboard</span>
+      <span class="mobile-topbar-title">Users Management</span>
       <button class="mobile-topbar-logout" id="mobileLogoutBtn" title="Sign Out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -39,14 +38,13 @@
       </div>
 
       <nav class="sidebar-nav">
-        <a class="nav-item active" href="/admin/dashboard/">
+        <a class="nav-item" href="/admin/dashboard/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Dashboard</span>
         </a>
         <a class="nav-item" href="/admin/chats/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Support Chats</span>
-          <div class="nav-badge" id="navChatBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/world-chat-rooms/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -59,19 +57,14 @@
         <a class="nav-item" href="/admin/withdrawals/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           <span>Withdrawals</span>
-          <div class="nav-badge" id="navWithdrawalBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/verified-hosts/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
           <span>Verified Hosts</span>
         </a>
-        <a class="nav-item" href="/admin/players/">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span>Players</span>
-        </a>
-        <a class="nav-item" href="/admin/wallet/">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <span>Wallet</span>
+        <a class="nav-item active" href="/admin/users/">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Users Management</span>
         </a>
         <a class="nav-item" href="/admin/notifications/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -101,89 +94,38 @@
     <div class="main-content">
       <div class="page-content">
         <div class="page-header">
-          <h1 class="page-title">Dashboard</h1>
-          <p class="page-subtitle">Overview of your platform</p>
+          <h1 class="page-title">Users Management</h1>
+          <p class="page-subtitle">Search and manage user accounts</p>
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#5b4cc4,#7c6cf0);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value" id="statTotalUsers">0</span>
-              <span class="stat-label">Total Users</span>
-            </div>
+        <!-- Total Users Count -->
+        <div class="users-count-card">
+          <div class="users-count-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
-
-          <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#0d9f72,#059669);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value" id="statActiveChats">0</span>
-              <span class="stat-label">Active Chats</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#d9880a,#b56d06);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value" id="statUnreadMsg">0</span>
-              <span class="stat-label">Unread Messages</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#d13a3a,#b52222);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value" id="statNotifications">0</span>
-              <span class="stat-label">Notifications Sent</span>
-            </div>
+          <div class="users-count-info">
+            <span class="users-count-value" id="totalUsersCount">0</span>
+            <span class="users-count-label">Total Registered Users</span>
           </div>
         </div>
 
-        <a class="host-app-btn" href="/admin/users/" style="border-color:rgba(124,108,240,0.3);">
-          <div class="host-app-icon" style="background:linear-gradient(135deg,#5b4cc4,#7c6cf0);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <!-- Search Bar -->
+        <div class="search-section">
+          <div class="search-box">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search by UID or Email...">
+            <button class="search-btn" id="searchBtn" onclick="searchUsers()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search
+            </button>
           </div>
-          <div class="host-app-info">
-            <span class="host-app-title">Users Management</span>
-            <span class="host-app-desc">Search & manage user accounts</span>
-          </div>
-          <svg class="host-app-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+        </div>
 
-        <a class="host-app-btn" href="/admin/host-applications/">
-          <div class="host-app-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-          </div>
-          <div class="host-app-info">
-            <span class="host-app-title">Host Applications</span>
-            <span class="host-app-desc"><span id="statHostApps">0</span> pending applications</span>
-          </div>
-          <svg class="host-app-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-
-        <a class="host-app-btn" href="/admin/withdrawals/" style="border-color:rgba(217,136,10,0.3);">
-          <div class="host-app-icon" style="background:linear-gradient(135deg,#d9880a,#b56d06);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          </div>
-          <div class="host-app-info">
-            <span class="host-app-title">Withdrawal Requests</span>
-            <span class="host-app-desc"><span id="statWithdrawals">0</span> pending withdrawals</span>
-          </div>
-          <svg class="host-app-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-
-        <div class="dashboard-section">
-          <h2 class="section-title">Recent Activity</h2>
-          <div class="activity-list" id="activityList">
-            <div class="empty-placeholder">Loading activity...</div>
+        <!-- Search Results -->
+        <div class="search-results" id="searchResults">
+          <div class="results-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <p>Search for users by UID or Email</p>
           </div>
         </div>
       </div>
@@ -200,12 +142,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
   <script src="/api/firebase-config"></script>
   <script src="../../firebase/auth.js"></script>
   <script src="../../firebase/database.js"></script>
   <script src="../common/nav.js"></script>
   <script src="script.js"></script>
-
 </body>
 </html>
