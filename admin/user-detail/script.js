@@ -4,6 +4,7 @@
 
 var fieldsContent = document.getElementById("fieldsContent");
 var subcollectionList = document.getElementById("subcollectionList");
+var subcollectionsContent = document.getElementById("subcollectionsContent");
 var uidBannerValue = document.getElementById("uidBannerValue");
 var btnEdit = document.getElementById("btnEdit");
 var btnSave = document.getElementById("btnSave");
@@ -15,10 +16,14 @@ var originalData = null;
 var isEditMode = false;
 
 // Fields that should not be editable
-var READ_ONLY_FIELDS = ["createdAt", "JoinedAt", "deviceId", "fcmToken", "fcmTokenUpdatedAt", "lastLogin", "lastLoginDate", "lastLoginTime", "lastUpdated", "loginCount"];
+var READ_ONLY_FIELDS = ["createdAt", "JoinedAt", "deviceId", "fcmToken", "fcmTokenUpdatedAt", "lastLogin", "lastLoginDate", "lastLoginTime", "lastUpdated", "loginCount", "kycVerifiedAt", "KYCTimestamp"];
 
 // Payment system: Database stores PAISA (Integer), UI shows RUPEES/Coins (with decimal)
-var COIN_FIELDS = ["TopUpCoins", "MyReferralBonus", "bonusCoins", "totalCoins"];
+// Formula: rupees = paisa / 100.0
+var COIN_FIELDS = ["TopUpCoins", "MyReferralBonus", "WinningCoins", "bonusCoins", "totalCoins"];
+
+// Fields that are numeric timestamps (milliseconds) - need human-readable conversion
+var TIMESTAMP_FIELDS = ["KYCTimestamp"];
 
 // SubCollections
 var SUBCOLLECTIONS = ["JoinedMatches", "TransactionHistory"];
@@ -69,7 +74,7 @@ function loadUserData(uid) {
     }
 
     currentData = doc.data();
-    originalData = JSON.parse(JSON.stringify(currentData)); // deep copy
+    originalData = cloneData(currentData);
     renderFields(currentData);
 
     // If initial tab is subcollections, switch
@@ -81,18 +86,63 @@ function loadUserData(uid) {
   });
 }
 
+// ========== DEEP CLONE preserving Timestamps ==========
+function cloneData(data) {
+  if (!data) return data;
+  var clone = {};
+  for (var key in data) {
+    if (!data.hasOwnProperty(key)) continue;
+    var val = data[key];
+    if (val && typeof val === "object" && typeof val.toDate === "function") {
+      // Firestore Timestamp - store seconds/nanoseconds for reconstruction
+      clone[key] = { seconds: val.seconds, nanoseconds: val.nanoseconds, _isTimestamp: true };
+    } else if (val && typeof val === "object" && val._delegate && val._delegate._methodName) {
+      // FieldValue sentinel - mark it
+      clone[key] = { _isFieldValue: true, _methodName: val._delegate._methodName };
+    } else {
+      clone[key] = JSON.parse(JSON.stringify(val));
+    }
+  }
+  return clone;
+}
+
+// ========== REBUILD Timestamps from clone ==========
+function rebuildTimestamps(data) {
+  if (!data) return data;
+  for (var key in data) {
+    if (!data.hasOwnProperty(key)) continue;
+    var val = data[key];
+    if (val && typeof val === "object" && val._isTimestamp && val.seconds !== undefined) {
+      // Rebuild as a Date from the stored seconds
+      data[key] = new Date(val.seconds * 1000 + (val.nanoseconds || 0) / 1000000);
+    }
+  }
+  return data;
+}
+
 // ========== RENDER FIELDS ==========
 function renderFields(data) {
   var html = '<div class="fields-section">';
 
-  // Sort fields: important ones first
+  // Sort fields: important ones first, grouped logically
   var fieldOrder = [
-    "UserName", "email", "InGameUID", "AccountStatus", "KYCStatus",
-    "Level", "TopUpCoins", "MyReferralCode", "MyReferralBonus", "ReferedBy",
-    "freeFireVerified", "deviceId", "unreadNotificationCount",
+    // Identity
+    "UserName", "email", "InGameUID", "freeFireVerified",
+    // Account Status
+    "AccountStatus", "BannedReason", "BannedPeriod",
+    // KYC
+    "KYCStatus", "kycVerifiedAt", "kycVerifiedVia", "KYCTimestamp",
+    // Level & Stats
+    "Level", "TotalPlayed", "WithdrawalCount",
+    // Balance / Coins (Payment System - PAISA in DB, Coins on UI)
+    "TopUpCoins", "WinningCoins", "MyReferralCode", "MyReferralBonus", "ReferedBy",
+    // Other
+    "unreadNotificationCount",
+    // Timestamps (read-only)
     "JoinedAt", "createdAt", "lastLogin", "lastLoginDate", "lastLoginTime",
-    "lastUpdated", "fcmToken", "fcmTokenUpdatedAt", "loginCount",
-    "BannedReason", "BannedPeriod"
+    "lastUpdated",
+    // Device & FCM (read-only)
+    "deviceId", "fcmToken", "fcmTokenUpdatedAt", "loginCount"
   ];
 
   // Get all keys from data
@@ -113,9 +163,9 @@ function renderFields(data) {
     var value = data[key];
     var isReadOnly = READ_ONLY_FIELDS.indexOf(key) !== -1;
     var displayValue = formatFieldValue(value, key);
-    var inputType = getInputType(value);
+    var isCoinField = COIN_FIELDS.indexOf(key) !== -1 && typeof value === "number";
 
-    html += '<div class="field-row" data-key="' + escapeHtml(key) + '">';
+    html += '<div class="field-row' + (isCoinField ? ' coin-field-row' : '') + '" data-key="' + escapeHtml(key) + '">';
     html += '<div class="field-label">' + escapeHtml(key) + '</div>';
 
     if (isEditMode && !isReadOnly) {
@@ -127,9 +177,16 @@ function renderFields(data) {
         html += '<option value="false"' + (!value ? ' selected' : '') + '>false</option>';
         html += '</select>';
         html += '</div>';
+      } else if (isCoinField) {
+        // Coin fields: show in Coins (paisa/100) for editing, but save back as paisa
+        var coinsValue = paisaToRupees(value);
+        html += '<div class="field-edit field-coin-edit">';
+        html += '<input type="number" step="0.01" class="field-input field-coin-input" data-key="' + escapeHtml(key) + '" data-is-coin="true" data-paisa-value="' + value + '" value="' + coinsValue + '">';
+        html += '<span class="field-coin-suffix">Coins</span>';
+        html += '</div>';
       } else {
         html += '<div class="field-edit">';
-        html += '<input type="' + inputType + '" class="field-input" data-key="' + escapeHtml(key) + '" value="' + escapeHtml(String(value === null || value === undefined ? "" : value)) + '">';
+        html += '<input type="' + getInputType(value) + '" class="field-input" data-key="' + escapeHtml(key) + '" value="' + escapeHtml(String(value === null || value === undefined ? "" : value)) + '">';
         html += '</div>';
       }
     } else {
@@ -147,8 +204,8 @@ function renderFields(data) {
   fieldsContent.innerHTML = html;
 }
 
-// ========== FORMAT FIELD VALUE ==========
-// Payment system: paisa to rupees for coin fields
+// ========== PAYMENT SYSTEM ==========
+// Database stores PAISA (Integer), UI shows RUPEES/Coins (with decimal)
 function paisaToRupees(paisa) {
   if (paisa === null || paisa === undefined) return 0;
   return paisa / 100.0;
@@ -163,31 +220,64 @@ function formatCoins(paisa) {
   return formatted + " Coins";
 }
 
+// ========== FORMAT FIELD VALUE ==========
 function formatFieldValue(value, key) {
   if (value === null || value === undefined) {
     return '<span class="null-value">null</span>';
   }
-  // Payment system: Show Coins for coin fields
+
+  // Payment system: Show Coins for coin fields (paisa → rupees)
   if (key && COIN_FIELDS.indexOf(key) !== -1 && typeof value === "number") {
     return '<span class="coins-value">' + escapeHtml(formatCoins(value)) + '</span>';
   }
+
+  // Numeric timestamp fields (milliseconds) - convert to IST human-readable
+  if (key && TIMESTAMP_FIELDS.indexOf(key) !== -1 && typeof value === "number") {
+    return '<span class="timestamp-value">' + escapeHtml(formatDate(new Date(value))) + '</span>';
+  }
+
   if (typeof value === "boolean") {
     return value ? '<span class="bool-true">true</span>' : '<span class="bool-false">false</span>';
   }
+
+  // Firestore Timestamp with .toDate() method
   if (typeof value === "object" && typeof value.toDate === "function") {
-    // Firestore Timestamp
     return '<span class="timestamp-value">' + escapeHtml(formatDate(value)) + '</span>';
   }
-  if (typeof value === "object" && value.seconds) {
-    // Firestore Timestamp object
-    return '<span class="timestamp-value">' + escapeHtml(formatDate(new Date(value.seconds * 1000))) + '</span>';
+
+  // Firestore Timestamp-like object (seconds/nanoseconds without .toDate)
+  if (typeof value === "object" && value !== null && typeof value.seconds === "number") {
+    return '<span class="timestamp-value">' + escapeHtml(formatDate(new Date(value.seconds * 1000 + (value.nanoseconds || 0) / 1000000))) + '</span>';
   }
+
+  // FieldValue sentinel (serverTimestamp that hasn't resolved)
+  if (typeof value === "object" && value !== null) {
+    // Check for Firestore FieldValue sentinel
+    if (value._delegate && value._delegate._methodName) {
+      return '<span class="field-value-sentinel">Auto (Server Timestamp)</span>';
+    }
+    if (value._isFieldValue) {
+      return '<span class="field-value-sentinel">Auto (Server Timestamp)</span>';
+    }
+    // Date object
+    if (value instanceof Date) {
+      return '<span class="timestamp-value">' + escapeHtml(formatDate(value)) + '</span>';
+    }
+  }
+
   if (Array.isArray(value)) {
     return escapeHtml(JSON.stringify(value));
   }
+
   if (typeof value === "object") {
-    return escapeHtml(JSON.stringify(value));
+    // Last resort: try to stringify
+    try {
+      return escapeHtml(JSON.stringify(value));
+    } catch (e) {
+      return escapeHtml(String(value));
+    }
   }
+
   return escapeHtml(String(value));
 }
 
@@ -211,8 +301,9 @@ function cancelEdit() {
   btnEdit.style.display = "flex";
   btnSave.style.display = "none";
   btnCancel.style.display = "none";
-  // Restore original data
-  currentData = JSON.parse(JSON.stringify(originalData));
+  // Restore original data and rebuild timestamps
+  currentData = cloneData(originalData);
+  rebuildTimestamps(currentData);
   renderFields(currentData);
 }
 
@@ -231,9 +322,16 @@ function saveChanges() {
     var newValue = input.value;
     var originalValue = originalData[key];
 
+    // Check if this is a coin field (payment system: UI shows rupees, DB stores paisa)
+    var isCoinInput = input.getAttribute("data-is-coin") === "true";
+
     // Parse value based on original type
     var parsedValue;
-    if (typeof originalValue === "number") {
+    if (isCoinInput) {
+      // Convert rupees back to paisa for database storage
+      var rupeesVal = parseFloat(newValue);
+      parsedValue = isNaN(rupeesVal) ? 0 : Math.round(rupeesVal * 100);
+    } else if (typeof originalValue === "number") {
       parsedValue = Number(newValue);
       if (isNaN(parsedValue)) parsedValue = 0;
     } else if (typeof originalValue === "boolean") {
@@ -250,8 +348,18 @@ function saveChanges() {
       parsedValue = newValue;
     }
 
+    // Compare with original (for coin fields, compare with original paisa value)
+    var compareOriginal = originalValue;
+    if (isCoinInput && typeof originalValue === "number") {
+      compareOriginal = originalValue; // already in paisa
+    }
+    // Also handle the _isTimestamp case
+    if (compareOriginal && typeof compareOriginal === "object" && compareOriginal._isTimestamp) {
+      compareOriginal = compareOriginal.seconds; // just compare seconds roughly
+    }
+
     // Check if value changed
-    if (JSON.stringify(parsedValue) !== JSON.stringify(originalValue)) {
+    if (JSON.stringify(parsedValue) !== JSON.stringify(compareOriginal)) {
       updates[key] = parsedValue;
       hasChanges = true;
     }
@@ -272,11 +380,13 @@ function saveChanges() {
   updates.lastUpdated = firebase.firestore.FieldValue.serverTimestamp();
 
   db.collection("Users").doc(currentUid).update(updates).then(function() {
-    // Update local data
-    for (var key in updates) {
-      currentData[key] = updates[key];
+    // Re-fetch the document to get resolved serverTimestamp
+    return db.collection("Users").doc(currentUid).get();
+  }).then(function(doc) {
+    if (doc.exists) {
+      currentData = doc.data();
+      originalData = cloneData(currentData);
     }
-    originalData = JSON.parse(JSON.stringify(currentData));
 
     isEditMode = false;
     btnEdit.style.display = "flex";
@@ -303,12 +413,12 @@ function switchTab(tab) {
     tabFields.classList.add("active");
     tabSubcollections.classList.remove("active");
     fieldsContent.style.display = "block";
-    subcollectionList.style.display = "none";
+    subcollectionsContent.style.display = "none";
   } else {
     tabFields.classList.remove("active");
     tabSubcollections.classList.add("active");
     fieldsContent.style.display = "none";
-    subcollectionList.style.display = "block";
+    subcollectionsContent.style.display = "block";
 
     if (subcollectionList.children.length === 0) {
       loadSubCollections();
@@ -398,6 +508,8 @@ function formatDate(ts) {
     dateObj = ts.toDate();
   } else if (typeof ts === "number") {
     dateObj = new Date(ts);
+  } else if (ts instanceof Date) {
+    dateObj = ts;
   } else {
     dateObj = new Date(ts);
   }

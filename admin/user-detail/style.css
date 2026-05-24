@@ -92,6 +92,18 @@
 
 .field-row:hover { border-color: #2a2d42; }
 
+/* Coin fields - special highlight row */
+.field-row.coin-field-row {
+  background: #1a1d2e;
+  border-color: #1e3a2e;
+  border-left: 3px solid #10b981;
+}
+
+.field-row.coin-field-row:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.03);
+}
+
 .field-label {
   font-size: 12px; font-weight: 600; color: #7c7f96;
   text-transform: uppercase; letter-spacing: 0.3px;
@@ -118,6 +130,12 @@
 .timestamp-value { color: #f59e0b; font-size: 13px; }
 .coins-value { color: #10b981; font-weight: 600; }
 
+/* FieldValue sentinel display */
+.field-value-sentinel {
+  color: #5a5d72; font-style: italic; font-size: 12px;
+  background: #0f1117; padding: 2px 8px; border-radius: 4px;
+}
+
 /* ========== Edit Mode ========== */
 .field-edit { flex: 1; }
 
@@ -130,6 +148,27 @@
 }
 
 .field-input:focus { border-color: #7c6cf0; }
+
+/* Coin field edit mode */
+.field-coin-edit {
+  display: flex; align-items: center; gap: 8px; flex: 1;
+}
+
+.field-coin-input {
+  width: 120px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid #1e3a2e; background: #0f1117;
+  color: #10b981; font-size: 14px; font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  outline: none; transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.field-coin-input:focus { border-color: #10b981; }
+
+.field-coin-suffix {
+  font-size: 12px; color: #5a5d72; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
 
 .field-select {
   width: 100%; padding: 8px 12px; border-radius: 8px;
@@ -287,6 +326,8 @@
   .field-label { min-width: unset; }
   .detail-actions { flex-direction: column; }
   .detail-tabs { flex-direction: column; }
+  .field-coin-edit { width: 100%; }
+  .field-coin-input { flex: 1; width: auto; }
 }
 
 @media (max-width: 480px) {

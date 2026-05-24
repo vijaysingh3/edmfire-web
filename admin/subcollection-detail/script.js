@@ -25,7 +25,7 @@ function paisaToRupees(paisa) {
 function formatCoins(paisa) {
   var rupees = paisaToRupees(paisa);
   if (rupees % 1 === 0) {
-    return rupees.toInt ? rupees.toInt() + " Coins" : Math.round(rupees) + " Coins";
+    return Math.round(rupees) + " Coins";
   }
   var formatted = rupees.toFixed(2).replace(/\.?0+$/, "");
   return formatted + " Coins";
@@ -121,7 +121,7 @@ function getTimestamp(data) {
   if (data.joinTime && data.joinTime.seconds) {
     return data.joinTime.seconds * 1000;
   }
-  // Try timestamp string
+  // Try timestamp as string
   if (data.timestamp && typeof data.timestamp === "string") {
     return new Date(data.timestamp).getTime();
   }
@@ -241,56 +241,58 @@ function renderTransactionHistory(items) {
       html += buildField("Description", data.description, "");
     }
 
-    // Type-specific fields
-    // Deposit
+    // Type-specific fields based on actual database structure
+
+    // Deposit: utr, amount, bonusCoins, totalCoins, transactionId, payerName, payerHandle
     if (transactionType === "Deposit") {
       if (data.utr) html += buildField("UTR", data.utr, "mono");
-      if (data.bonusCoins !== undefined) html += buildField("Bonus Coins", formatCoins(data.bonusCoins), "coins");
-      if (data.totalCoins !== undefined) html += buildField("Total Coins", formatCoins(data.totalCoins), "coins");
+      if (data.bonusCoins !== undefined && data.bonusCoins !== null) html += buildField("Bonus Coins", formatCoins(data.bonusCoins), "coins");
+      if (data.totalCoins !== undefined && data.totalCoins !== null) html += buildField("Total Coins", formatCoins(data.totalCoins), "coins");
       if (data.payerName) html += buildField("Payer Name", data.payerName, "");
-      if (data.payerHandle) buildField("Payer Handle", data.payerHandle, "");
+      if (data.payerHandle) html += buildField("Payer Handle", data.payerHandle, "");
     }
 
-    // Tournament Joining
+    // Tournament Joining: tournamentId, tournamentType, slotNumber, referralBonusUsed
     if (transactionType === "Tournament Joining") {
       if (data.tournamentId) html += buildField("Tournament ID", data.tournamentId, "mono");
       if (data.tournamentType) html += buildField("Tournament Type", data.tournamentType, "");
-      if (data.slotNumber !== undefined) html += buildField("Slot", data.slotNumber, "");
-      if (data.referralBonusUsed !== undefined) html += buildField("Referral Bonus Used", formatCoins(data.referralBonusUsed), "coins");
+      if (data.slotNumber !== undefined && data.slotNumber !== null) html += buildField("Slot", data.slotNumber, "");
+      if (data.referralBonusUsed !== undefined && data.referralBonusUsed !== null) html += buildField("Referral Bonus Used", formatCoins(data.referralBonusUsed), "coins");
     }
 
-    // Tournament Winnings
+    // Tournament Winnings: tournamentId, tournamentType, rank, result
     if (transactionType === "Tournament Winnings") {
       if (data.tournamentId) html += buildField("Tournament ID", data.tournamentId, "mono");
       if (data.tournamentType) html += buildField("Tournament Type", data.tournamentType, "");
-      if (data.rank !== undefined) html += buildField("Rank", data.rank, "");
-      if (data.result) buildField("Result", data.result, "");
+      if (data.rank !== undefined && data.rank !== null) html += buildField("Rank", data.rank, "");
+      if (data.result) html += buildField("Result", data.result, "");
     }
 
-    // Tournament Refund
+    // Tournament Refund: tournamentId, refundPercent
     if (transactionType === "Tournament Refund") {
       if (data.tournamentId) html += buildField("Tournament ID", data.tournamentId, "mono");
-      if (data.refundPercent !== undefined) html += buildField("Refund %", data.refundPercent + "%", "");
+      if (data.refundPercent !== undefined && data.refundPercent !== null) html += buildField("Refund %", data.refundPercent + "%", "");
     }
 
-    // Referral Bonus / Signup Bonus
+    // Referral Bonus: referredUser, referredBy
     if (transactionType === "Referral Bonus") {
-      if (data.referredUser) buildField("Referred User", data.referredUser, "");
+      if (data.referredUser) html += buildField("Referred User", data.referredUser, "");
       if (data.referredBy) html += buildField("Referred By", data.referredBy, "");
     }
 
+    // Signup Bonus: only standard fields (transactionId, amount, timestamp, description)
     if (transactionType === "Signup Bonus") {
-      // Only has standard fields
+      // Only has standard fields already shown above
     }
 
-    // Withdrawal Request
+    // Withdrawal Request: paymentMethod, bankAddress, notes
     if (transactionType === "Withdrawal Request") {
       if (data.paymentMethod) html += buildField("Payment Method", data.paymentMethod, "");
       if (data.bankAddress) html += buildField("Bank/UPID", data.bankAddress, "mono");
       if (data.notes) html += buildField("Notes", data.notes, "");
     }
 
-    // Processed At
+    // Processed At (if different from main timestamp)
     if (data.processedAt) {
       html += buildField("Processed At", formatTimestamp(data.processedAt), "time");
     }
