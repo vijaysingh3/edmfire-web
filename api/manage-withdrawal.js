@@ -215,17 +215,17 @@ async function completeWithdrawal(data) {
     batch.update(withdrawalRef, withdrawalUpdate);
     await batch.commit();
 
-    // Update TotalWithdrawal (separate transaction)
+    // Update TotalWithdrawal (separate transaction) - stored in paisa
     const totalWithdrawalRef = firestore.collection("TotalWithdrawal").doc("Amount");
     await firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(totalWithdrawalRef);
       const currentTotal = snapshot.exists ? (snapshot.data().total || 0) : 0;
-      const newTotal = currentTotal + amountInRupees;
+      const newTotal = currentTotal + amountInPaisa;
 
       transaction.set(totalWithdrawalRef, {
         total: newTotal,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-        lastTransactionAmount: amountInRupees,
+        lastTransactionAmount: amountInPaisa,
         currency: "INR",
       });
     });

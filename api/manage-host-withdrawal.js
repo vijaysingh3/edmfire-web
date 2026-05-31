@@ -11,6 +11,7 @@
  *     - Update hostsWithdrawalRequest → completed
  *     - Update hosts/{hostId}/transactionHistory → completed + utr field
  *     - Update hosts/{hostId}/accountBalance/wallet → add totalWithdrawal field
+ *     - Update TotalWithdrawal/Amount → increment total (in paisa)
  *   refundHostWithdrawal   - Refund with notes
  *     - Update hostsWithdrawalRequest → refunded
  *     - Update hosts/{hostId}/transactionHistory → refunded
@@ -214,7 +215,22 @@ async function completeHostWithdrawal(data) {
       });
     });
 
-    // 3. Notifications (fire and forget)
+    // 3. Update TotalWithdrawal/Amount (in paisa) - global tracker
+    const totalWithdrawalRef = firestore.collection("TotalWithdrawal").doc("Amount");
+    await firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(totalWithdrawalRef);
+      const currentTotal = snapshot.exists ? (snapshot.data().total || 0) : 0;
+      const newTotal = currentTotal + amountInPaisa;
+
+      transaction.set(totalWithdrawalRef, {
+        total: newTotal,
+        lastUpdated: now,
+        lastTransactionAmount: amountInPaisa,
+        currency: "INR",
+      });
+    });
+
+    // 4. Notifications (fire and forget)
     sendHostWithdrawalNotifications("completeHostWithdrawal", hostId, amountInRupees, transactionId, { utrNumber });
 
     return {
