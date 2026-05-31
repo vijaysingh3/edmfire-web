@@ -1,0 +1,742 @@
+/* ============================================
+   EDMFire Admin - Withdrawal Requests Styles
+   ============================================ */
+
+/* Stats Bar */
+.wd-stats-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wd-stat {
+  flex: 1;
+  min-width: 100px;
+  background: #1a1d2e;
+  border: 1px solid #2a2d42;
+  border-radius: 12px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.wd-stat-value {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: #e8e9f0;
+  font-family: 'Poppins', sans-serif;
+}
+
+.wd-stat-label {
+  display: block;
+  font-size: 11px;
+  color: #6b6e82;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wd-stat-pending { color: #f59e0b !important; }
+.wd-stat-completed { color: #10b981 !important; }
+.wd-stat-refunded { color: #f97316 !important; }
+.wd-stat-rejected { color: #ef4444 !important; }
+
+/* Filter Tabs */
+.wd-filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wd-filter-tab {
+  background: #1a1d2e;
+  border: 1px solid #2a2d42;
+  color: #8b8ea2;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-family: 'Poppins', sans-serif;
+}
+
+.wd-filter-tab:hover {
+  border-color: #7c6cf0;
+  color: #7c6cf0;
+}
+
+.wd-filter-tab.active {
+  background: #7c6cf0;
+  border-color: #7c6cf0;
+  color: white;
+}
+
+/* Search Bar */
+.wd-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1a1d2e;
+  border: 1px solid #2a2d42;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.wd-search-bar:focus-within {
+  border-color: #7c6cf0;
+}
+
+.wd-search-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e8e9f0;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.wd-search-bar input::placeholder {
+  color: #5a5d72;
+}
+
+.wd-search-clear {
+  background: none;
+  border: none;
+  color: #8b8ea2;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.wd-search-clear:hover {
+  color: #e8e9f0;
+}
+
+/* Results Count */
+.wd-results-count {
+  font-size: 12px;
+  color: #6b6e82;
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+/* Loading */
+.wd-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #5a5d72;
+}
+
+.wd-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #2a2d42;
+  border-top-color: #7c6cf0;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.wd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #5a5d72;
+}
+
+.wd-empty h2 {
+  font-size: 18px;
+  color: #5a5d72;
+  margin: 0;
+}
+
+.wd-empty p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ============ WITHDRAWAL CARD ============ */
+.wd-card {
+  background: #1a1d2e;
+  border: 1px solid #2a2d42;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.wd-card:hover {
+  border-color: #3a3d52;
+}
+
+.wd-card.processing {
+  border-color: #7c6cf0;
+  opacity: 0.85;
+}
+
+/* Card Top Row: Name + Amount */
+.wd-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.wd-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8e9f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+.wd-card-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #10b981;
+}
+
+/* User ID */
+.wd-card-userid {
+  font-size: 10px;
+  color: #5a5d72;
+  margin-bottom: 6px;
+  user-select: all;
+  font-family: 'Poppins', monospace;
+}
+
+/* Game UID */
+.wd-card-gameuid {
+  font-size: 12px;
+  color: #9b9eb2;
+  margin-bottom: 6px;
+}
+
+/* Payment Row with Copy */
+.wd-card-payment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.wd-card-payment {
+  font-size: 13px;
+  color: #4caf50;
+  word-break: break-all;
+  flex: 1;
+  user-select: all;
+}
+
+.wd-card-copy-btn {
+  background: none;
+  border: 1px solid #2a2d42;
+  color: #2196f3;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.wd-card-copy-btn:hover {
+  background: #2a2d42;
+}
+
+.wd-card-copy-btn.copied {
+  color: #10b981;
+  border-color: #10b981;
+}
+
+/* Payment Method */
+.wd-card-payment-method {
+  font-size: 12px;
+  color: #6b6e82;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+/* Bottom Row: Status + Timestamp */
+.wd-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #22253a;
+}
+
+.wd-card-status {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.wd-card-status.pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.wd-card-status.completed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.wd-card-status.refunded {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+
+.wd-card-status.rejected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.wd-card-timestamp {
+  font-size: 12px;
+  color: #5a5d72;
+}
+
+/* Progress Bar */
+.wd-card-progress {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.wd-card.processing .wd-card-progress {
+  display: flex;
+}
+
+.wd-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #2a2d42;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.wd-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7c6cf0, #a78bfa);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.wd-progress-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7c6cf0;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Action Buttons */
+.wd-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.wd-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.wd-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wd-btn-complete {
+  background: #059669;
+  color: white;
+}
+
+.wd-btn-complete:hover:not(:disabled) {
+  background: #047857;
+}
+
+.wd-btn-refund {
+  background: #d97706;
+  color: white;
+}
+
+.wd-btn-refund:hover:not(:disabled) {
+  background: #b56d06;
+}
+
+.wd-btn-reject {
+  background: #dc2626;
+  color: white;
+}
+
+.wd-btn-reject:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+/* View Details link */
+.wd-card-view-btn {
+  background: none;
+  border: none;
+  color: #7c6cf0;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+.wd-card-view-btn:hover {
+  text-decoration: underline;
+}
+
+/* ============ DIALOG SYSTEM ============ */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.dialog-box {
+  background: #1a1d2e;
+  border: 1px solid #2a2d42;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: dialogIn 0.2s ease;
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dialog-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.dialog-icon-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.dialog-icon-orange {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+
+.dialog-icon-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.dialog-icon-blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e8e9f0;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.dialog-message {
+  font-size: 14px;
+  color: #8b8ea2;
+  text-align: center;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.dialog-field {
+  margin-bottom: 16px;
+}
+
+.dialog-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8b8ea2;
+  margin-bottom: 6px;
+}
+
+.dialog-field-input {
+  width: 100%;
+  background: #0f1117;
+  border: 1px solid #2a2d42;
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e8e9f0;
+  font-size: 14px;
+  outline: none;
+  font-family: 'Poppins', sans-serif;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.dialog-field-input:focus {
+  border-color: #7c6cf0;
+}
+
+.dialog-field-input::placeholder {
+  color: #5a5d72;
+}
+
+textarea.dialog-field-input {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.dialog-field-hint {
+  font-size: 11px;
+  color: #ef4444;
+  margin-top: 4px;
+  display: none;
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dialog-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.2s;
+}
+
+.dialog-btn-cancel {
+  background: #2a2d42;
+  color: #8b8ea2;
+}
+
+.dialog-btn-cancel:hover {
+  background: #3a3d52;
+}
+
+.dialog-btn-confirm {
+  color: white;
+}
+
+.dialog-btn-green {
+  background: #059669;
+}
+
+.dialog-btn-green:hover {
+  background: #047857;
+}
+
+.dialog-btn-orange {
+  background: #d97706;
+}
+
+.dialog-btn-orange:hover {
+  background: #b56d06;
+}
+
+.dialog-btn-red {
+  background: #dc2626;
+}
+
+.dialog-btn-red:hover {
+  background: #b91c1c;
+}
+
+/* Detail Dialog */
+.dialog-details {
+  background: #0f1117;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.dialog-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #1a1d2e;
+  font-size: 13px;
+}
+
+.dialog-detail-row:last-child {
+  border-bottom: none;
+}
+
+.dialog-detail-label {
+  color: #6b6e82;
+  min-width: 40%;
+}
+
+.dialog-detail-value {
+  color: #e8e9f0;
+  font-weight: 500;
+  text-align: right;
+  word-break: break-all;
+}
+
+.dialog-detail-section {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c6cf0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 0 4px;
+  border-bottom: none !important;
+}
+
+/* Toast */
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1d2e;
+  border: 1px solid #2a2d42;
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e8e9f0;
+  z-index: 2000;
+  animation: toastIn 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 90vw;
+  font-family: 'Poppins', sans-serif;
+}
+
+.toast-success { border-color: #10b981; color: #10b981; }
+.toast-error { border-color: #ef4444; color: #ef4444; }
+.toast-info { border-color: #7c6cf0; color: #7c6cf0; }
+
+.toast-fade {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .wd-stats-bar {
+    gap: 8px;
+  }
+
+  .wd-stat {
+    min-width: 72px;
+    padding: 10px 8px;
+  }
+
+  .wd-stat-value {
+    font-size: 18px;
+  }
+
+  .wd-card-actions {
+    flex-wrap: wrap;
+  }
+
+  .wd-btn {
+    font-size: 11px;
+    padding: 8px 8px;
+  }
+
+  .wd-card-name {
+    font-size: 14px;
+    max-width: 48%;
+  }
+
+  .wd-card-amount {
+    font-size: 16px;
+  }
+}
