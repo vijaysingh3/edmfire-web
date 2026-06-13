@@ -26,7 +26,7 @@ function searchUsers() {
     searchResults.innerHTML =
       '<div class="results-empty">' +
         '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-        '<p>Enter a UID or Email to search</p>' +
+        '<p>Enter a UID, Email or InGameUID to search</p>' +
       '</div>';
     return;
   }
@@ -40,26 +40,28 @@ function searchUsers() {
 
   var db = firebase.firestore();
 
-  // Check if query looks like a UID (no @ symbol)
-  if (query.indexOf("@") === -1) {
+  // Check if query looks like an email (has @ symbol)
+  if (query.indexOf("@") !== -1) {
+    // Search by email
+    searchByEmail(query);
+  } else {
     // Try as UID first — direct document lookup
     db.collection("Users").doc(query).get().then(function(doc) {
       if (doc.exists) {
         renderResults([{ id: doc.id, data: doc.data() }]);
       } else {
-        // Also try email query as fallback
-        searchByEmail(query);
+        // Try InGameUID search next
+        searchByInGameUID(query);
       }
     }).catch(function(err) {
       console.error("UID search error:", err);
-      searchByEmail(query);
+      // Try InGameUID search as fallback
+      searchByInGameUID(query);
     });
-  } else {
-    // Search by email
-    searchByEmail(query);
   }
 }
 
+// ========== SEARCH BY EMAIL ==========
 function searchByEmail(email) {
   var db = firebase.firestore();
   db.collection("Users").where("email", "==", email).get().then(function(snapshot) {
@@ -67,7 +69,35 @@ function searchByEmail(email) {
       searchResults.innerHTML =
         '<div class="results-empty">' +
           '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-          '<p>No user found with this email or UID</p>' +
+          '<p>No user found with this email</p>' +
+        '</div>';
+      return;
+    }
+
+    var results = [];
+    snapshot.forEach(function(doc) {
+      results.push({ id: doc.id, data: doc.data() });
+    });
+    renderResults(results);
+  }).catch(function(err) {
+    searchResults.innerHTML =
+      '<div class="results-empty">' +
+        '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+        '<p>Search error: ' + escapeHtml(err.message) + '</p>' +
+      '</div>';
+  });
+}
+
+// ========== SEARCH BY InGameUID ==========
+function searchByInGameUID(inGameUID) {
+  var db = firebase.firestore();
+  db.collection("Users").where("InGameUID", "==", inGameUID).get().then(function(snapshot) {
+    if (snapshot.empty) {
+      // No match by UID, Email or InGameUID — show not found
+      searchResults.innerHTML =
+        '<div class="results-empty">' +
+          '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+          '<p>No user found with this UID, Email or InGameUID</p>' +
         '</div>';
       return;
     }
@@ -95,6 +125,7 @@ function renderResults(results) {
     var data = results[i].data;
     var userName = escapeHtml(data.UserName || data.username || "Unknown");
     var email = escapeHtml(data.email || "No email");
+    var inGameUID = escapeHtml(data.InGameUID || "");
     var accountStatus = data.AccountStatus || "Active";
     var statusClass = accountStatus === "Active" ? "active" : "banned";
     var initial = userName.charAt(0).toUpperCase();
@@ -105,6 +136,9 @@ function renderResults(results) {
     html += '<div class="user-result-info">';
     html += '<div class="user-result-name">' + userName + '</div>';
     html += '<div class="user-result-email">' + email + '</div>';
+    if (inGameUID) {
+      html += '<div class="user-result-ingame" style="font-size:12px;color:#9ca3af;margin-top:2px;">InGameUID: <span style="color:#7c6cf0;">' + inGameUID + '</span></div>';
+    }
     html += '</div>';
     html += '<span class="user-result-status ' + statusClass + '">' + escapeHtml(accountStatus) + '</span>';
     html += '</div>';
