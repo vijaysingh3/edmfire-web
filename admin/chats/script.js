@@ -202,19 +202,24 @@ function enrichUserNamesFromFirestore(uids) {
 
 // Get the best display name for a user — with much better fallbacks
 function getDisplayName(uid, rtdbUser) {
-  // 1. Firestore UserName (best)
+  // 1. Firestore UserName (best — fetched directly from Firestore by admin)
   if (firestoreUserNames[uid]) {
     return firestoreUserNames[uid];
   }
-  // 2. RTDB username (only if not "Unknown" and not "User_XXX" pattern)
+  // 2. RTDB UserName (capital — synced from Firestore by user-side sync API)
+  //    Ye preferred hai kyunki ye real Firestore UserName hai, ab RTDB me stored
+  if (rtdbUser && rtdbUser.UserName && rtdbUser.UserName !== "Unknown" && String(rtdbUser.UserName).indexOf("User_") !== 0) {
+    return rtdbUser.UserName;
+  }
+  // 3. RTDB username (lowercase — backwards compat)
   if (rtdbUser && rtdbUser.username && rtdbUser.username !== "Unknown" && rtdbUser.username.indexOf("User_") !== 0) {
     return rtdbUser.username;
   }
-  // 3. RTDB userId
+  // 4. RTDB userId
   if (rtdbUser && rtdbUser.userId && rtdbUser.userId !== uid) {
     return rtdbUser.userId;
   }
-  // 4. Fallback: "User <first 8 chars of UID>" — much better than "Unknown"
+  // 5. Fallback: "User <first 8 chars of UID>" — much better than "Unknown"
   if (uid && uid.length > 0) {
     return "User " + uid.substring(0, 8);
   }

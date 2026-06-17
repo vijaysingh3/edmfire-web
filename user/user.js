@@ -157,6 +157,42 @@ function onAuthComplete() {
     saveFcmToken(verifiedUid, pendingFcmToken);
     pendingFcmToken = null;
   }
+
+  // BACKGROUND (non-blocking): Firestore se UserName fetch karke RTDB me save karo
+  // Taaki admin panel chat me direct RTDB se username display ho sake
+  syncUserNameFromFirestore(verifiedUid);
+}
+
+// ============ FIRESTORE USERNAME SYNC (BACKGROUND, NON-BLOCKING) ============
+// Ye function Firestore se user ka UserName fetch karke RTDB helpCenter/users/{uid} me save karta hai.
+// BACKGROUND me chalta hai — chat load ko block NAHI karta.
+// Fail hone par bhi chat normally chalega, sirf username RTDB me save nahi hoga.
+function syncUserNameFromFirestore(uid) {
+  if (!uid) return;
+  try {
+    fetch("/api/sync-user-name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: uid })
+    }).then(function(response) {
+      if (!response.ok) {
+        console.warn("[UC-NAME] API returned non-ok status:", response.status);
+        return null;
+      }
+      return response.json();
+    }).then(function(data) {
+      if (data && data.success && data.userName) {
+        console.log("[UC-NAME] UserName synced from Firestore:", data.userName);
+      } else {
+        console.log("[UC-NAME] No UserName synced for", uid, "-", (data && data.message) || "no data");
+      }
+    }).catch(function(err) {
+      // Non-blocking failure — chat ko affect nahi karta
+      console.warn("[UC-NAME] Sync failed (non-blocking):", err.message);
+    });
+  } catch (err) {
+    console.warn("[UC-NAME] Sync init failed:", err.message);
+  }
 }
 
 // ============ OPTIMIZED: Single user check (NOT all users) ============
