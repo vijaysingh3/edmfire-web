@@ -1,12 +1,17 @@
 // ============================================
 // EDMFire Admin - Users Management Logic
-// Search by UID (document ID), Email, or InGameUID
+// Search by UID (document ID), Email, or inGameUID
 // Firestore path: Users/{userId}
+// Field name variants checked: inGameUID, InGameUID, inGameUid, InGameUid
+// Value types checked: string AND number (Firestore where is type-strict)
 // ============================================
 
 var searchInput = document.getElementById("searchInput");
 var searchResults = document.getElementById("searchResults");
 var totalUsersCount = document.getElementById("totalUsersCount");
+
+// All possible field name variants for InGameUID
+var INGAME_UID_FIELDS = ["inGameUID", "InGameUID", "inGameUid", "InGameUid", "gameUID", "GameUID", "gameUid", "GameUid"];
 
 // ========== LOAD TOTAL USERS COUNT ==========
 function loadTotalUsersCount() {
@@ -65,6 +70,7 @@ function searchUsers() {
     return;
   }
 
+  console.log("[USER-SEARCH] =========================================");
   console.log("[USER-SEARCH] Query:", query);
 
   // Show loading
@@ -77,68 +83,107 @@ function searchUsers() {
   var db = firebase.firestore();
   var hasAt = query.indexOf("@") !== -1;
 
-  if (hasAt) {
-    // Email search
-    console.log("[USER-SEARCH] Detected email, searching by email...");
-    db.collection("Users").where("email", "==", query).get().then(function(snapshot) {
-      console.log("[USER-SEARCH] Email search results:", snapshot.size);
-      if (snapshot.empty) {
-        showEmpty("No user found with this email");
-        return;
-      }
-      var results = [];
-      snapshot.forEach(function(doc) {
-        results.push({ id: doc.id, data: doc.data() });
-      });
-      renderResults(results);
-    }).catch(function(err) {
-      console.error("[USER-SEARCH] Email search error:", err);
-      showError(err.message);
-    });
-    return;
+  // Check if query is parseable as a number (for Firestore where type-strict matching)
+  var queryAsNumber = null;
+  if (/^\d+$/.test(query)) {
+    queryAsNumber = parseInt(query, 10);
+    console.log("[USER-SEARCH] Query is numeric, also trying as number:", queryAsNumber);
   }
 
-  // No @ — parallel search by UID (document lookup) AND InGameUID (where query)
-  console.log("[USER-SEARCH] No @ detected, searching UID + InGameUID in parallel...");
+  // All search promises to run in parallel
+  var allPromises = [];
 
-  var uidPromise = db.collection("Users").doc(query).get().then(function(doc) {
-    if (doc.exists) {
-      console.log("[USER-SEARCH] UID match found:", doc.id);
-      return [{ id: doc.id, data: doc.data() }];
+  // --- EMAIL search (only if @ is present) ---
+  if (hasAt) {
+    console.log("[USER-SEARCH] Query has @, searching by email...");
+    allPromises.push(
+      db.collection("Users").where("email", "==", query).get().then(function(snapshot) {
+        console.log("[USER-SEARCH] Email matches:", snapshot.size);
+        var results = [];
+        snapshot.forEach(function(doc) {
+          results.push({ id: doc.id, data: doc.data() });
+        });
+        return results;
+      }).catch(function(err) {
+        console.error("[USER-SEARCH] Email search error:", err.message);
+        return [];
+      })
+    );
+  } else {
+    // --- UID document lookup ---
+    console.log("[USER-SEARCH] Trying UID document lookup...");
+    allPromises.push(
+      db.collection("Users").doc(query).get().then(function(doc) {
+        if (doc.exists) {
+          console.log("[USER-SEARCH] UID match found:", doc.id);
+          return [{ id: doc.id, data: doc.data() }];
+        }
+        console.log("[USER-SEARCH] No UID match");
+        return [];
+      }).catch(function(err) {
+        console.error("[USER-SEARCH] UID lookup error:", err.message);
+        return [];
+      })
+    );
+
+    // --- InGameUID search (try ALL field name variants, as STRING) ---
+    INGAME_UID_FIELDS.forEach(function(fieldName) {
+      allPromises.push(
+        db.collection("Users").where(fieldName, "==", query).get().then(function(snapshot) {
+          if (snapshot.size > 0) {
+            console.log("[USER-SEARCH] Field '" + fieldName + "' == string matches:", snapshot.size);
+          }
+          var results = [];
+          snapshot.forEach(function(doc) {
+            results.push({ id: doc.id, data: doc.data() });
+          });
+          return results;
+        }).catch(function(err) {
+          // Silent — likely field doesn't exist or needs index, don't spam console
+          return [];
+        })
+      );
+    });
+
+    // --- InGameUID search (try ALL field name variants, as NUMBER) ---
+    if (queryAsNumber !== null) {
+      INGAME_UID_FIELDS.forEach(function(fieldName) {
+        allPromises.push(
+          db.collection("Users").where(fieldName, "==", queryAsNumber).get().then(function(snapshot) {
+            if (snapshot.size > 0) {
+              console.log("[USER-SEARCH] Field '" + fieldName + "' == number matches:", snapshot.size);
+            }
+            var results = [];
+            snapshot.forEach(function(doc) {
+              results.push({ id: doc.id, data: doc.data() });
+            });
+            return results;
+          }).catch(function(err) {
+            return [];
+          })
+        );
+      });
     }
-    console.log("[USER-SEARCH] No UID match");
-    return [];
-  }).catch(function(err) {
-    console.error("[USER-SEARCH] UID lookup error:", err);
-    return [];
-  });
 
-  var inGameUIDPromise = db.collection("Users").where("InGameUID", "==", query).get().then(function(snapshot) {
-    console.log("[USER-SEARCH] InGameUID matches:", snapshot.size);
-    var results = [];
-    snapshot.forEach(function(doc) {
-      results.push({ id: doc.id, data: doc.data() });
-    });
-    return results;
-  }).catch(function(err) {
-    console.error("[USER-SEARCH] InGameUID search error:", err);
-    return [];
-  });
+    // --- UserName exact match (string) ---
+    allPromises.push(
+      db.collection("Users").where("UserName", "==", query).get().then(function(snapshot) {
+        if (snapshot.size > 0) {
+          console.log("[USER-SEARCH] UserName matches:", snapshot.size);
+        }
+        var results = [];
+        snapshot.forEach(function(doc) {
+          results.push({ id: doc.id, data: doc.data() });
+        });
+        return results;
+      }).catch(function(err) {
+        return [];
+      })
+    );
+  }
 
-  // Also try by UserName (exact match) as a bonus
-  var userNamePromise = db.collection("Users").where("UserName", "==", query).get().then(function(snapshot) {
-    console.log("[USER-SEARCH] UserName matches:", snapshot.size);
-    var results = [];
-    snapshot.forEach(function(doc) {
-      results.push({ id: doc.id, data: doc.data() });
-    });
-    return results;
-  }).catch(function(err) {
-    console.error("[USER-SEARCH] UserName search error:", err);
-    return [];
-  });
-
-  Promise.all([uidPromise, inGameUIDPromise, userNamePromise]).then(function(arrays) {
+  // Wait for all searches to complete
+  Promise.all(allPromises).then(function(arrays) {
     // Merge all results
     var all = [];
     arrays.forEach(function(arr) {
@@ -152,7 +197,13 @@ function searchUsers() {
     console.log("[USER-SEARCH] Final results (after dedupe):", results.length);
 
     if (results.length === 0) {
-      showEmpty("No user found with this UID, Email or InGameUID");
+      // Show diagnostic info to help user understand why no results
+      var hint = "No user found with this UID, Email or InGameUID";
+      if (!hasAt && queryAsNumber !== null) {
+        hint += " (tried as both string and number, all field variants)";
+      }
+      console.log("[USER-SEARCH] FAILED — checked fields:", INGAME_UID_FIELDS.join(", "), "and as number:", queryAsNumber);
+      showEmpty(hint);
       return;
     }
     renderResults(results);
@@ -169,9 +220,19 @@ function renderResults(results) {
   for (var i = 0; i < results.length; i++) {
     var uid = results[i].id;
     var data = results[i].data;
+
+    // Try multiple field name variants to read the inGameUID
+    var inGameUIDRaw = "";
+    for (var f = 0; f < INGAME_UID_FIELDS.length; f++) {
+      if (data[INGAME_UID_FIELDS[f]] !== undefined && data[INGAME_UID_FIELDS[f]] !== null && data[INGAME_UID_FIELDS[f]] !== "") {
+        inGameUIDRaw = data[INGAME_UID_FIELDS[f]];
+        break;
+      }
+    }
+    var inGameUID = escapeHtml(String(inGameUIDRaw || ""));
+
     var userName = escapeHtml(data.UserName || data.username || "Unknown");
     var email = escapeHtml(data.email || "No email");
-    var inGameUID = escapeHtml(data.InGameUID || "");
     var accountStatus = data.AccountStatus || "Active";
     var statusClass = accountStatus === "Active" ? "active" : "banned";
     var initial = userName.charAt(0).toUpperCase();
