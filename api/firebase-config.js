@@ -11,6 +11,9 @@ module.exports = (req, res) => {
     measurementId: process.env.FB_MEASUREMENT_ID
   };
 
+  // FCM VAPID key (optional — admin notifications ke liye chahiye)
+  const vapidKey = process.env.FB_VAPID_KEY || "";
+
   // JS script ke roop me return karna
   res.setHeader("Content-Type", "application/javascript");
   res.setHeader("Cache-Control", "public, max-age=3600");
@@ -18,6 +21,9 @@ module.exports = (req, res) => {
   const js = `
 // Firebase config - Vercel env vars se fetch hua
 const firebaseConfig = ${JSON.stringify(firebaseConfig)};
+
+// FCM VAPID key (admin notifications ke liye)
+const FCM_VAPID_KEY = ${JSON.stringify(vapidKey)};
 
 // Firebase initialize karna
 firebase.initializeApp(firebaseConfig);
@@ -27,6 +33,7 @@ const auth = firebase.auth();
 const database = firebase.database();
 if (firebase.storage) { const storage = firebase.storage(); }
 `;
+
 
   res.status(200).send(js);
 };

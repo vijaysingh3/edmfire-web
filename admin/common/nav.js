@@ -23,12 +23,244 @@ function initAuthGuard(callback) {
       updateUserInfo();
       if (loadingEl) loadingEl.style.display = "none";
       if (callback) callback(user);
+
+      // BACKGROUND (non-blocking): admin FCM token generate + save
+      // Taaki user ke messages pe admin ko push notification mile
+      initAdminFCM(user);
     } else {
       // Not logged in → redirect to login page
       window.location.href = "/admin/";
     }
   });
 }
+
+// ========== ADMIN FCM TOKEN INIT ==========
+// Background me FCM token generate karke RTDB helpCenter/admins/{uid} me save karta hai
+// Ye sab non-blocking hai — admin page load ko affect nahi karta
+var adminFCMInitialized = false;
+function initAdminFCM(user) {
+  if (adminFCMInitialized) return;
+  adminFCMInitialized = true;
+
+  // Firebase Messaging SDK loaded hai ya nahi check karo
+  if (!firebase.messaging || !FCM_VAPID_KEY) {
+    console.warn("[ADMIN-FCM] Messaging SDK not loaded or VAPID key missing — skipping FCM init");
+    return;
+  }
+
+  try {
+    var messaging = firebase.messaging();
+
+    // Service Worker register karo admin SW (background push handle karne ke liye)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/admin/sw.js').then(function(reg) {
+        console.log('[ADMIN-FCM] Service Worker registered:', reg.scope);
+
+        // Notification permission request karo
+        if (Notification.permission === 'default') {
+          Notification.requestPermission().then(function(permission) {
+            if (permission === 'granted') {
+              console.log('[ADMIN-FCM] Notification permission granted');
+              getTokenAndSave(messaging, reg);
+            } else {
+              console.warn('[ADMIN-FCM] Notification permission not granted');
+            }
+          });
+        } else if (Notification.permission === 'granted') {
+          getTokenAndSave(messaging, reg);
+        }
+      }).catch(function(err) {
+        console.warn('[ADMIN-FCM] SW registration failed:', err);
+        // Try without SW (foreground only)
+        getTokenAndSave(messaging, null);
+      });
+    } else {
+      console.warn('[ADMIN-FCM] Service Worker not supported in this browser');
+    }
+
+    // Token refresh listener — agar FCM token rotate ho jaye
+    messaging.onTokenRefresh(function() {
+      console.log('[ADMIN-FCM] Token refreshed, getting new token');
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration('/admin/sw.js').then(function(reg) {
+          getTokenAndSave(messaging, reg);
+        });
+      } else {
+        getTokenAndSave(messaging, null);
+      }
+    });
+
+    // Foreground message listener — jab admin tab active hai
+    messaging.onMessage(function(payload) {
+      console.log('[ADMIN-FCM] Foreground message received:', payload);
+      handleForegroundNotification(payload);
+    });
+
+  } catch (err) {
+    console.warn('[ADMIN-FCM] Init error:', err);
+  }
+}
+
+// ========== GET FCM TOKEN + SAVE TO RTDB ==========
+function getTokenAndSave(messaging, swRegistration) {
+  var options = { vapidKey: FCM_VAPID_KEY };
+  if (swRegistration) options.serviceWorkerRegistration = swRegistration;
+
+  messaging.getToken(options).then(function(token) {
+    if (!token) {
+      console.warn('[ADMIN-FCM] No token received');
+      return;
+    }
+    console.log('[ADMIN-FCM] FCM token generated:', token.substring(0, 20) + '...');
+
+    // RTDB me save karo — helpCenter/admins/{uid}
+    var adminRef = firebase.database().ref("helpCenter/admins/" + currentAdmin.uid);
+
+    // Pehle existing token check karo — agar same hai toh update nahi karna
+    adminRef.child("fcmToken").once("value").then(function(snap) {
+      var existingToken = snap.val();
+      if (existingToken === token) {
+        console.log('[ADMIN-FCM] Token already up-to-date in RTDB');
+        return;
+      }
+
+      // Save token + admin metadata
+      var updates = {
+        fcmToken: token,
+        email: currentAdmin.email || '',
+        uid: currentAdmin.uid,
+        lastActive: Date.now(),
+        lastTokenUpdate: Date.now()
+      };
+      adminRef.update(updates).then(function() {
+        console.log('[ADMIN-FCM] Token saved to RTDB helpCenter/admins/' + currentAdmin.uid);
+      }).catch(function(err) {
+        console.warn('[ADMIN-FCM] RTDB save error:', err);
+      });
+    }).catch(function(err) {
+      console.warn('[ADMIN-FCM] Token check error:', err);
+    });
+  }).catch(function(err) {
+    console.warn('[ADMIN-FCM] getToken error:', err);
+  });
+}
+
+// ========== FOREGROUND NOTIFICATION HANDLER ==========
+// Jab admin tab active hai aur notification aaye — in-app toast dikhao
+function handleForegroundNotification(payload) {
+  var notification = payload.notification || {};
+  var data = payload.data || {};
+
+  var title = notification.title || 'EDMFire Admin';
+  var body = notification.body || 'New activity';
+  var userUid = data.userUid || data.uid || '';
+
+  // In-app toast notification dikhao (top-right corner)
+  showAdminNotificationToast(title, body, userUid);
+
+  // Optional: tab title update karo agar tab background me hai
+  if (document.visibilityState === 'hidden' || document.hidden) {
+    document.title = '(' + title + ') EDMFire Admin';
+    // Reset title when tab becomes visible
+    document.addEventListener('visibilitychange', function reset() {
+      if (!document.hidden) {
+        document.title = 'EDMFire Admin';
+        document.removeEventListener('visibilitychange', reset);
+      }
+    });
+  }
+}
+
+// ========== ADMIN NOTIFICATION TOAST ==========
+function showAdminNotificationToast(title, body, userUid) {
+  // Remove existing toast if any
+  var existing = document.getElementById('adminNotifToast');
+  if (existing) existing.remove();
+
+  var toast = document.createElement('div');
+  toast.id = 'adminNotifToast';
+  toast.style.cssText = [
+    'position:fixed',
+    'top:20px',
+    'right:20px',
+    'background:linear-gradient(135deg,#5b4cc4,#7c6cf0)',
+    'color:white',
+    'padding:14px 18px',
+    'border-radius:12px',
+    'box-shadow:0 8px 24px rgba(0,0,0,0.3)',
+    'font-family:Poppins,sans-serif',
+    'font-size:14px',
+    'max-width:340px',
+    'cursor:pointer',
+    'z-index:99999',
+    'animation:slideInRight 0.3s ease-out',
+    'display:flex',
+    'gap:12px',
+    'align-items:flex-start'
+  ].join(';');
+
+  var icon = '<div style="font-size:20px;flex-shrink:0;">💬</div>';
+  var content =
+    '<div style="flex:1;">' +
+      '<div style="font-weight:600;font-size:14px;margin-bottom:4px;">' + escapeHtml(title) + '</div>' +
+      '<div style="font-size:13px;opacity:0.9;line-height:1.4;">' + escapeHtml(body) + '</div>' +
+    '</div>';
+
+  toast.innerHTML = icon + content;
+
+  // Click kare toh chat page pe le jao
+  toast.addEventListener('click', function() {
+    if (userUid) {
+      window.location.href = '/admin/chats/?uid=' + encodeURIComponent(userUid);
+    } else {
+      window.location.href = '/admin/chats/';
+    }
+  });
+
+  document.body.appendChild(toast);
+
+  // Auto-dismiss after 6 seconds
+  setTimeout(function() {
+    toast.style.transition = 'opacity 0.4s, transform 0.4s';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    setTimeout(function() {
+      if (toast.parentNode) toast.remove();
+    }, 400);
+  }, 6000);
+}
+
+// Listen for messages from Service Worker (background notification captured)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    if (!event.data) return;
+
+    if (event.data.type === 'ADMIN_FCM_NOTIFICATION') {
+      // Background se aaya notification — foreground tab ko inform karo
+      handleForegroundNotification({
+        notification: { title: event.data.title, body: event.data.body },
+        data: { userUid: event.data.userUid, senderUid: event.data.senderUid }
+      });
+    } else if (event.data.type === 'ADMIN_NOTIF_CLICK') {
+      // SW ne notification click handle kiya — navigate to chat
+      if (event.data.url) {
+        window.location.href = event.data.url;
+      }
+    }
+  });
+}
+
+// Add CSS for slide-in animation
+(function() {
+  var style = document.createElement('style');
+  style.textContent = [
+    '@keyframes slideInRight {',
+    '  from { opacity:0; transform:translateX(20px); }',
+    '  to { opacity:1; transform:translateX(0); }',
+    '}'
+  ].join('\n');
+  document.head.appendChild(style);
+})();
 
 // ========== UPDATE USER INFO IN SIDEBAR ==========
 function updateUserInfo() {
@@ -187,6 +419,15 @@ function initSmartAutoClose() {
 
 // ========== LOGOUT ==========
 function handleLogout() {
+  // Clean up: FCM token RTDB se remove karo (non-blocking)
+  if (currentAdmin && firebase.database) {
+    try {
+      firebase.database().ref("helpCenter/admins/" + currentAdmin.uid + "/fcmToken").remove();
+    } catch (e) {
+      console.warn('[ADMIN-FCM] Token cleanup error:', e);
+    }
+  }
+
   signOutUser().then(function() {
     window.location.href = "/admin/";
   });

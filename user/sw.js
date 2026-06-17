@@ -5,7 +5,7 @@
 // Messages ko localStorage me cache karta hai (user.js me)
 // ============================================
 
-var CACHE_NAME = 'user-chat-v2';
+var CACHE_NAME = 'user-chat-v3';
 
 // Cache karne wali files — ye install time pe cache ho jayengi
 var CACHE_URLS = [

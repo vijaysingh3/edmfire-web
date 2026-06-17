@@ -406,6 +406,8 @@ async function sendTextMessage() {
 
   try {
     await sendMessage(verifiedUid, "user", text, "", replyRef);
+    // BACKGROUND (non-blocking): admin ko push notification bhejo
+    notifyAdminOfUserMessage(verifiedUid, text);
   } catch (error) {
     console.error("[UC] sendTextMessage error:", error);
   }
@@ -432,12 +434,69 @@ async function sendImageMessage() {
     uploadingDiv.remove();
     if (imageUrl) {
       await sendMessage(verifiedUid, "user", "", imageUrl, replyRef);
+      // BACKGROUND (non-blocking): admin ko push notification bhejo
+      notifyAdminOfUserMessage(verifiedUid, "📷 Image");
     } else {
       showErrorBubble();
     }
   } catch (error) {
     uploadingDiv.remove();
     showErrorBubble();
+  }
+}
+
+// ============ ADMIN NOTIFICATION (FIRE-AND-FORGET, NON-BLOCKING) ============
+// User message bhejne ke baad ye function admin ko push notification bhejta hai.
+// Pure non-blocking hai — chat ko KABHI nahi rokta.
+// Fail hone par bhi chat normally chalega, sirf admin ko notification nahi milega.
+function notifyAdminOfUserMessage(userUid, body) {
+  if (!userUid) return;
+  try {
+    // User ka display name RTDB se fetch karo (recently synced UserName field)
+    // Taaki notification title me real name dikhe instead of "User ABC123"
+    firebase.database().ref("helpCenter/users/" + userUid + "/UserName").once("value")
+      .then(function(snap) {
+        var userName = snap.val() || "";
+        var title = userName ? ("New message from " + userName) : "New support message";
+
+        // API call — fire and forget
+        fetch("/api/send-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target: "allAdmins",
+            title: title,
+            body: body || "New message",
+            userUid: userUid,
+            senderUid: userUid
+          })
+        }).then(function(response) {
+          if (response.ok) {
+            console.log("[UC-ADMIN-NOTIF] Notification sent to admins");
+          } else {
+            console.warn("[UC-ADMIN-NOTIF] API non-ok status:", response.status);
+          }
+        }).catch(function(err) {
+          console.warn("[UC-ADMIN-NOTIF] Send failed (non-blocking):", err.message);
+        });
+      })
+      .catch(function(err) {
+        console.warn("[UC-ADMIN-NOTIF] UserName fetch failed:", err.message);
+        // Fallback — bina name ke bhej do
+        fetch("/api/send-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target: "allAdmins",
+            title: "New support message",
+            body: body || "New message",
+            userUid: userUid,
+            senderUid: userUid
+          })
+        }).catch(function() {});
+      });
+  } catch (err) {
+    console.warn("[UC-ADMIN-NOTIF] Init failed:", err.message);
   }
 }
 
