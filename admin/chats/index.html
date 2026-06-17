@@ -141,6 +141,8 @@
               <span class="chat-main-name" id="chatHeaderName">Select a conversation</span>
               <span class="chat-main-status" id="chatHeaderStatus">Choose a user to start chatting</span>
             </div>
+            <!-- Action buttons (populated by script.js) -->
+            <div class="chat-header-actions" id="chatHeaderActions"></div>
           </div>
 
           <div class="chat-messages" id="messagesContainer">
@@ -207,6 +209,20 @@
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner"></div>
+  </div>
+
+  <!-- User Info Modal -->
+  <div class="user-info-modal" id="userInfoModal" style="display:none;">
+    <div class="user-info-overlay" id="userInfoOverlay"></div>
+    <div class="user-info-content">
+      <div class="user-info-header">
+        <h3>User Info</h3>
+        <button class="user-info-close" id="userInfoClose" title="Close">&times;</button>
+      </div>
+      <div class="user-info-body" id="userInfoBody">
+        <div class="user-info-loading">Loading...</div>
+      </div>
+    </div>
   </div>
 
   <!-- Firebase SDK -->

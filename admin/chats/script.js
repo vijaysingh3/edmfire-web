@@ -31,6 +31,7 @@ var searchInput = document.getElementById("searchInput");
 var messagesContainer = document.getElementById("messagesContainer");
 var chatHeaderName = document.getElementById("chatHeaderName");
 var chatHeaderStatus = document.getElementById("chatHeaderStatus");
+var chatHeaderActions = document.getElementById("chatHeaderActions");
 var chatInputBar = document.getElementById("chatInputBar");
 var msgInput = document.getElementById("msgInput");
 var sendBtn = document.getElementById("sendBtn");
@@ -46,6 +47,12 @@ var previewImage = document.getElementById("previewImage");
 var previewOverlay = document.getElementById("previewOverlay");
 var cancelPreview = document.getElementById("cancelPreview");
 var sendPreview = document.getElementById("sendPreview");
+
+// User Info modal elements
+var userInfoModal = document.getElementById("userInfoModal");
+var userInfoOverlay = document.getElementById("userInfoOverlay");
+var userInfoClose = document.getElementById("userInfoClose");
+var userInfoBody = document.getElementById("userInfoBody");
 
 // Chat sidebar elements
 var chatSidebar = document.getElementById("chatSidebar");
@@ -410,7 +417,22 @@ function selectUser(uid, userData) {
   if (email) statusParts.push(email);
   if (statusParts.length === 0) statusParts.push(uid);
 
-  chatHeaderStatus.innerHTML = '<span class="chat-uid-text" title="Click to copy UID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' + escapeHtml(statusParts.join(" | ")) + '</span> <button class="chat-uid-copy-btn" onclick="copyUserId(\'' + escapeHtml(uid) + '\')" title="Copy User ID"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
+  chatHeaderStatus.innerHTML =
+    '<span class="chat-uid-text" title="Click to copy UID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' + escapeHtml(statusParts.join(" | ")) + '</span>';
+
+  // Build action buttons: User Info + Copy UID
+  if (chatHeaderActions) {
+    chatHeaderActions.innerHTML =
+      // User Info button (shows Firestore user data in modal)
+      '<button class="chat-header-action-btn" title="Show User Info" onclick="showUserInfo(\'' + escapeHtml(uid) + '\')">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
+      '</button>' +
+      // Copy UID button
+      '<button class="chat-header-action-btn" title="Copy User ID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+      '</button>';
+  }
+
   chatInputBar.style.display = "flex";
 
   // Update active state
@@ -427,6 +449,257 @@ function selectUser(uid, userData) {
   resetUnread(uid);
   markMessagesAsSeen(uid, "admin");
   loadSelectedUserChat(uid);
+
+  // ALWAYS do a fresh Firestore fetch for this user when chat is opened
+  // This ensures the username is shown even if it wasn't cached before
+  fetchUserDetailsFromFirestore(uid);
+}
+
+// ========== FETCH USER DETAILS FROM FIRESTORE ==========
+// Always fetches fresh data from Firestore Users/{uid} and updates cache
+function fetchUserDetailsFromFirestore(uid) {
+  if (!firebase.firestore || !uid) return;
+
+  console.log("[CHAT] Fetching fresh user details from Firestore for:", uid);
+  var db = firebase.firestore();
+
+  db.collection("Users").doc(uid).get().then(function(doc) {
+    if (doc.exists) {
+      var d = doc.data();
+      var userName = d.UserName || d.username || d.name || d.displayName || d.Name;
+      if (userName) {
+        firestoreUserNames[uid] = userName;
+      } else {
+        firestoreUserNames[uid] = null;
+      }
+      // Cache other fields for tooltip + status
+      if (d.email) firestoreUserNames[uid + "__email"] = d.email;
+      else delete firestoreUserNames[uid + "__email"];
+      if (d.InGameUID) firestoreUserNames[uid + "__inGameUID"] = String(d.InGameUID);
+      else if (d.inGameUID) firestoreUserNames[uid + "__inGameUID"] = String(d.inGameUID);
+      else delete firestoreUserNames[uid + "__inGameUID"];
+
+      // Update chat header with fresh name
+      if (selectedUserUid === uid) {
+        var displayName = getDisplayName(uid, usersData[uid] || {});
+        chatHeaderName.textContent = displayName;
+
+        // Re-build status line with fresh email/inGameUID
+        var email = getUserEmail(uid);
+        var inGameUID = getUserInGameUID(uid);
+        var statusParts = [];
+        if (inGameUID) statusParts.push("GameUID: " + inGameUID);
+        if (email) statusParts.push(email);
+        if (statusParts.length === 0) statusParts.push(uid);
+        chatHeaderStatus.innerHTML =
+          '<span class="chat-uid-text" title="Click to copy UID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' + escapeHtml(statusParts.join(" | ")) + '</span>';
+
+        // Re-render action buttons
+        if (chatHeaderActions) {
+          chatHeaderActions.innerHTML =
+            '<button class="chat-header-action-btn" title="Show User Info" onclick="showUserInfo(\'' + escapeHtml(uid) + '\')">' +
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
+            '</button>' +
+            '<button class="chat-header-action-btn" title="Copy User ID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+            '</button>';
+        }
+      }
+
+      // Re-render user list to reflect updated name
+      renderUserList(usersData);
+      console.log("[CHAT] User details fetched for", uid, "- UserName:", userName);
+    } else {
+      console.log("[CHAT] No Firestore document found for", uid);
+      firestoreUserNames[uid] = null;
+    }
+  }).catch(function(err) {
+    console.warn("[CHAT] Firestore fetch error for", uid, err.message);
+  });
+}
+
+// ========== SHOW USER INFO MODAL ==========
+// Fetches ALL user data from Firestore and displays in a modal
+function showUserInfo(uid) {
+  if (!uid) return;
+  console.log("[CHAT] Show user info modal for:", uid);
+
+  // Show modal with loading state
+  userInfoModal.style.display = "flex";
+  userInfoBody.innerHTML = '<div class="user-info-loading">Loading user details from Firestore...</div>';
+
+  if (!firebase.firestore) {
+    userInfoBody.innerHTML = '<div class="user-info-empty">Firestore not initialized</div>';
+    return;
+  }
+
+  var db = firebase.firestore();
+
+  // Fetch user document from Firestore
+  db.collection("Users").doc(uid).get().then(function(doc) {
+    if (!doc.exists) {
+      userInfoBody.innerHTML =
+        '<div class="user-info-empty">No Firestore document found for this user.</div>' +
+        '<div class="user-info-row"><div class="user-info-row-label">UID (RTDB)</div><div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(uid) + '\')">' + escapeHtml(uid) + '</div></div>';
+      return;
+    }
+
+    var data = doc.data();
+    console.log("[CHAT] Firestore user data:", data);
+
+    // Build display name from multiple possible fields
+    var userName = data.UserName || data.username || data.name || data.displayName || data.Name || "(not set)";
+    var email = data.email || data.Email || "(not set)";
+    var inGameUID = "";
+    if (data.InGameUID !== undefined && data.InGameUID !== null && data.InGameUID !== "") inGameUID = String(data.InGameUID);
+    else if (data.inGameUID !== undefined && data.inGameUID !== null && data.inGameUID !== "") inGameUID = String(data.inGameUID);
+    else inGameUID = "(not set)";
+
+    var accountStatus = data.AccountStatus || "Active";
+    var freeFireVerified = data.freeFireVerified;
+    if (freeFireVerified === undefined) freeFireVerified = "(not set)";
+
+    var phone = data.phone || data.Phone || data.phoneNumber || "(not set)";
+    var createdAt = data.createdAt || data.CreatedAt;
+    var createdAtStr = "(not set)";
+    if (createdAt) {
+      try {
+        // Could be Firestore timestamp or epoch millis
+        var ms = typeof createdAt === "object" && createdAt.toMillis ? createdAt.toMillis() : (typeof createdAt === "number" ? createdAt : 0);
+        if (ms > 0) {
+          createdAtStr = new Date(ms).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+        }
+      } catch (e) { createdAtStr = String(createdAt); }
+    }
+
+    var winningCoins = data.WinningCoins;
+    var winningCoinsStr = winningCoins !== undefined ? "₹" + (Number(winningCoins) / 100).toFixed(2) + " (" + winningCoins + " paisa)" : "(not set)";
+
+    var depositCoins = data.DepositCoins;
+    var depositCoinsStr = depositCoins !== undefined ? "₹" + (Number(depositCoins) / 100).toFixed(2) + " (" + depositCoins + " paisa)" : "(not set)";
+
+    var bannedReason = data.BannedReason || "(none)";
+    var bannedPeriod = data.BannedPeriod || "(none)";
+
+    // Build avatar initial
+    var initial = (userName && userName !== "(not set)") ? userName.charAt(0).toUpperCase() : "?";
+
+    // Build modal body HTML
+    var html = '';
+    html += '<div class="user-info-avatar">' + escapeHtml(initial) + '</div>';
+    html += '<div class="user-info-display-name">' + escapeHtml(userName) + '</div>';
+    html += '<div class="user-info-subtitle">Firestore: Users/' + escapeHtml(uid.substring(0, 12)) + '...</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">UID</div>';
+    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(uid) + '\')" title="Click to copy">' + escapeHtml(uid) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">UserName</div>';
+    html += '<div class="user-info-row-value">' + escapeHtml(userName) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">Email</div>';
+    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(email) + '\')" title="Click to copy">' + escapeHtml(email) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">InGameUID</div>';
+    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(inGameUID) + '\')" title="Click to copy">' + escapeHtml(inGameUID) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">Phone</div>';
+    html += '<div class="user-info-row-value">' + escapeHtml(phone) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">Account Status</div>';
+    html += '<div class="user-info-row-value" style="color:' + (accountStatus === "Active" ? "#10b981" : "#ef4444") + ';">' + escapeHtml(accountStatus) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">Free Fire Verified</div>';
+    html += '<div class="user-info-row-value">' + escapeHtml(String(freeFireVerified)) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">WinningCoins</div>';
+    html += '<div class="user-info-row-value">' + escapeHtml(winningCoinsStr) + '</div>';
+    html += '</div>';
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">DepositCoins</div>';
+    html += '<div class="user-info-row-value">' + escapeHtml(depositCoinsStr) + '</div>';
+    html += '</div>';
+
+    if (accountStatus !== "Active") {
+      html += '<div class="user-info-row">';
+      html += '<div class="user-info-row-label">Banned Reason</div>';
+      html += '<div class="user-info-row-value">' + escapeHtml(bannedReason) + '</div>';
+      html += '</div>';
+
+      html += '<div class="user-info-row">';
+      html += '<div class="user-info-row-label">Banned Period</div>';
+      html += '<div class="user-info-row-value">' + escapeHtml(bannedPeriod) + '</div>';
+      html += '</div>';
+    }
+
+    html += '<div class="user-info-row">';
+    html += '<div class="user-info-row-label">Created At</div>';
+    html += '<div class="user-info-row-value">' + escapeHtml(createdAtStr) + '</div>';
+    html += '</div>';
+
+    userInfoBody.innerHTML = html;
+
+    // Update cache with fresh data
+    if (userName && userName !== "(not set)") {
+      firestoreUserNames[uid] = userName;
+    }
+    if (email && email !== "(not set)") firestoreUserNames[uid + "__email"] = email;
+    if (inGameUID && inGameUID !== "(not set)") firestoreUserNames[uid + "__inGameUID"] = inGameUID;
+
+    // Re-render sidebar to reflect any updated info
+    renderUserList(usersData);
+  }).catch(function(err) {
+    console.error("[CHAT] Show user info error:", err);
+    userInfoBody.innerHTML = '<div class="user-info-empty">Error: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+// Hide user info modal
+function hideUserInfoModal() {
+  if (userInfoModal) userInfoModal.style.display = "none";
+}
+
+// Wire up modal close handlers
+if (userInfoClose) {
+  userInfoClose.addEventListener("click", hideUserInfoModal);
+}
+if (userInfoOverlay) {
+  userInfoOverlay.addEventListener("click", hideUserInfoModal);
+}
+// Close modal on Escape key
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape" && userInfoModal && userInfoModal.style.display === "flex") {
+    hideUserInfoModal();
+  }
+});
+
+// Helper: copy arbitrary text (used by user info modal clickable values)
+function copyText(text) {
+  if (!text || text === "(not set)" || text === "(none)") return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      showChatToast("Copied!");
+    }).catch(function() {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
 }
 
 // ========== COPY USER ID ==========
