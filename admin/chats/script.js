@@ -1,8 +1,10 @@
 // ============================================
-// EDMFire Admin - Support Chats Logic
-// With sidebar toggle + mobile WhatsApp pattern
-// Smart auto-close system
-// Firestore UserName enrichment
+// EDMFire Admin - Support Chats Logic (Improved)
+// - Better username fallbacks (Firestore UserName → RTDB username → UID prefix)
+// - Sort by last message timestamp (most recent at top)
+// - Show last message preview + time ago in conversation bar
+// - Stable rendering (no auto-switch on high traffic)
+// - Debounced user list updates
 // ============================================
 
 var selectedUserUid = null;
@@ -16,6 +18,12 @@ var isMobile = window.innerWidth <= 768;
 
 // Firestore UserName cache: uid -> UserName
 var firestoreUserNames = {};
+
+// Last message cache: uid -> { text, timestamp, sender }
+var lastMessageCache = {};
+
+// Track if admin manually selected a user — we never auto-switch
+var userManuallySelected = false;
 
 // Chat DOM elements
 var userList = document.getElementById("userList");
@@ -48,52 +56,41 @@ var chatSidebarOverlay = document.getElementById("chatSidebarOverlay");
 
 // ========== CHAT SIDEBAR TOGGLE ==========
 
-// Desktop: toggle collapse
 function toggleChatSidebar() {
   if (!chatSidebar) return;
   if (isMobile) {
-    // On mobile, this button hides the sidebar
     hideMobileChatSidebar();
   } else {
-    // On desktop, toggle collapse
     chatSidebar.classList.toggle("collapsed");
     localStorage.setItem("edmfireChatSidebarCollapsed", chatSidebar.classList.contains("collapsed"));
   }
 }
 
-// Mobile: show user list
 function showMobileChatSidebar() {
   if (!chatSidebar) return;
   chatSidebar.classList.remove("mobile-hidden");
   if (chatSidebarOverlay) chatSidebarOverlay.classList.add("active");
 }
 
-// Mobile: hide user list (show chat)
 function hideMobileChatSidebar() {
   if (!chatSidebar) return;
   chatSidebar.classList.add("mobile-hidden");
   if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
 }
 
-// Initialize chat sidebar state based on screen size
 function initChatSidebarState() {
   if (!chatSidebar) return;
   isMobile = window.innerWidth <= 768;
 
   if (isMobile) {
-    // Mobile: reset collapsed, show sidebar initially (no chat selected yet)
     chatSidebar.classList.remove("collapsed");
     if (!selectedUserUid) {
-      // No chat selected: show user list
       chatSidebar.classList.remove("mobile-hidden");
     } else {
-      // Chat selected: hide user list, show chat
       chatSidebar.classList.add("mobile-hidden");
     }
-    // Remove overlay on init
     if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
   } else {
-    // Desktop: reset mobile-hidden, restore collapsed state from localStorage
     chatSidebar.classList.remove("mobile-hidden");
     if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
     if (localStorage.getItem("edmfireChatSidebarCollapsed") === "true") {
@@ -104,7 +101,6 @@ function initChatSidebarState() {
   }
 }
 
-// Event listeners for toggle buttons
 if (chatSidebarToggle) {
   chatSidebarToggle.addEventListener("click", toggleChatSidebar);
 }
@@ -126,14 +122,13 @@ if (chatBackBtn) {
   });
 }
 
-// Chat sidebar overlay click to close
 if (chatSidebarOverlay) {
   chatSidebarOverlay.addEventListener("click", function() {
     hideMobileChatSidebar();
   });
 }
 
-// ========== SMART AUTO-CLOSE ON RESIZE ==========
+// ========== RESIZE ==========
 var chatPrevWidth = window.innerWidth;
 
 window.addEventListener("resize", function() {
@@ -141,7 +136,6 @@ window.addEventListener("resize", function() {
   var wasMobile = isMobile;
   isMobile = currentWidth <= 768;
 
-  // When switching between mobile and desktop, reinitialize
   if (wasMobile !== isMobile) {
     initChatSidebarState();
   }
@@ -164,24 +158,34 @@ function enrichUserNamesFromFirestore(uids) {
 
       promises.push(
         db.collection("Users").doc(uid).get().then(function(doc) {
-          if (doc.exists && doc.data().UserName) {
-            firestoreUserNames[uid] = doc.data().UserName;
+          if (doc.exists) {
+            var d = doc.data();
+            // Try multiple field name variants for UserName
+            var userName = d.UserName || d.username || d.name || d.displayName || d.Name;
+            if (userName) {
+              firestoreUserNames[uid] = userName;
+              // Also cache email and inGameUID for tooltip
+              if (d.email) firestoreUserNames[uid + "__email"] = d.email;
+              if (d.InGameUID || d.inGameUID) {
+                firestoreUserNames[uid + "__inGameUID"] = d.InGameUID || d.inGameUID;
+              }
+            } else {
+              firestoreUserNames[uid] = null;
+            }
           } else {
-            firestoreUserNames[uid] = null; // Mark as checked but not found
+            firestoreUserNames[uid] = null;
           }
         }).catch(function(err) {
-          console.warn("Firestore UserName fetch error for", uid, err);
+          console.warn("[CHAT] Firestore UserName fetch error for", uid, err.message);
           firestoreUserNames[uid] = null;
         })
       );
     })(uids[i]);
   }
 
-  // Re-render user list after all Firestore lookups complete
   if (promises.length > 0) {
     Promise.all(promises).then(function() {
       renderUserList(usersData);
-      // Also update chat header if a user is selected
       if (selectedUserUid && firestoreUserNames[selectedUserUid]) {
         chatHeaderName.textContent = firestoreUserNames[selectedUserUid];
       }
@@ -189,31 +193,137 @@ function enrichUserNamesFromFirestore(uids) {
   }
 }
 
-// Get the best display name for a user
+// Get the best display name for a user — with much better fallbacks
 function getDisplayName(uid, rtdbUser) {
-  // Priority: Firestore UserName > RTDB username > UID-based fallback
+  // 1. Firestore UserName (best)
   if (firestoreUserNames[uid]) {
     return firestoreUserNames[uid];
   }
-  if (rtdbUser.username && rtdbUser.username !== "Unknown" && rtdbUser.username.indexOf("User_") !== 0) {
+  // 2. RTDB username (only if not "Unknown" and not "User_XXX" pattern)
+  if (rtdbUser && rtdbUser.username && rtdbUser.username !== "Unknown" && rtdbUser.username.indexOf("User_") !== 0) {
     return rtdbUser.username;
   }
-  // Fallback: Show "User_XXXX" as is (from RTDB)
-  if (rtdbUser.username) {
-    return rtdbUser.username;
+  // 3. RTDB userId
+  if (rtdbUser && rtdbUser.userId && rtdbUser.userId !== uid) {
+    return rtdbUser.userId;
+  }
+  // 4. Fallback: "User <first 8 chars of UID>" — much better than "Unknown"
+  if (uid && uid.length > 0) {
+    return "User " + uid.substring(0, 8);
   }
   return "Unknown";
 }
 
+// Get user email for tooltip/info
+function getUserEmail(uid) {
+  return firestoreUserNames[uid + "__email"] || "";
+}
+
+// Get user InGameUID for tooltip
+function getUserInGameUID(uid) {
+  var v = firestoreUserNames[uid + "__inGameUID"];
+  return v ? String(v) : "";
+}
+
+// ========== FETCH LAST MESSAGE FOR EACH USER ==========
+// Fetches the last message for a user from helpCenter/chats/{uid}
+// Uses limitToLast(1) for efficiency
+function fetchLastMessagesForUsers(uids) {
+  if (!uids || uids.length === 0) return Promise.resolve();
+
+  var rtdb = firebase.database();
+  var promises = [];
+
+  for (var i = 0; i < uids.length; i++) {
+    (function(uid) {
+      promises.push(
+        rtdb.ref("helpCenter/chats/" + uid).limitToLast(1).once("value").then(function(snapshot) {
+          if (snapshot.exists()) {
+            snapshot.forEach(function(child) {
+              var msg = child.val();
+              lastMessageCache[uid] = {
+                text: msg.text || (msg.imageUrl ? "📷 Image" : ""),
+                timestamp: msg.timestamp || 0,
+                sender: msg.sender || "user"
+              };
+            });
+          } else {
+            // No messages — set timestamp to 0 so it goes to bottom
+            if (!lastMessageCache[uid]) {
+              lastMessageCache[uid] = { text: "", timestamp: 0, sender: "user" };
+            }
+          }
+        }).catch(function(err) {
+          console.warn("[CHAT] Last message fetch error for", uid, err.message);
+        })
+      );
+    })(uids[i]);
+  }
+
+  return Promise.all(promises).then(function() {
+    renderUserList(usersData);
+  });
+}
+
+// ========== TIME AGO FORMATTER ==========
+function formatTimeAgo(timestamp) {
+  if (!timestamp || timestamp === 0) return "";
+
+  var now = Date.now();
+  var diff = now - timestamp;
+  var seconds = Math.floor(diff / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  var days = Math.floor(hours / 24);
+
+  if (seconds < 60) return "now";
+  if (minutes < 60) return minutes + "m";
+  if (hours < 24) return hours + "h";
+  if (days < 7) return days + "d";
+
+  // For older, show date
+  var d = new Date(timestamp);
+  return d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
+}
+
 // ========== LOAD USERS ==========
+// Debounce user list rendering to avoid flicker during high traffic
+var userRenderTimer = null;
+function debouncedRenderUserList() {
+  if (userRenderTimer) clearTimeout(userRenderTimer);
+  userRenderTimer = setTimeout(function() {
+    renderUserList(usersData);
+  }, 150);
+}
+
 function loadUsersList() {
   loadUsers(function(data) {
     usersData = data || {};
+    console.log("[CHAT] Users data updated. Total users:", Object.keys(usersData).length);
+
+    // CRITICAL: Do NOT change selectedUserUid here.
+    // Only re-render the list. The selected chat stays as-is.
     renderUserList(usersData);
 
-    // Enrich with Firestore UserNames
+    // Enrich with Firestore UserNames (only for UIDs not yet cached)
     var uids = Object.keys(usersData);
-    enrichUserNamesFromFirestore(uids);
+    var uncachedUids = uids.filter(function(uid) {
+      return firestoreUserNames[uid] === undefined;
+    });
+    if (uncachedUids.length > 0) {
+      enrichUserNamesFromFirestore(uncachedUids);
+    }
+
+    // Fetch last messages for users we don't have cached yet
+    var uncachedLastMsgUids = uids.filter(function(uid) {
+      return lastMessageCache[uid] === undefined;
+    });
+    if (uncachedLastMsgUids.length > 0) {
+      fetchLastMessagesForUsers(uncachedLastMsgUids);
+    } else {
+      // All cached — just re-render with proper sort
+      renderUserList(usersData);
+    }
   });
 }
 
@@ -226,20 +336,58 @@ function renderUserList(data) {
     return;
   }
 
+  // Sort by last message timestamp DESCENDING (most recent at top)
+  // Users with no messages go to the bottom
   var sorted = uids.sort(function(a, b) {
-    return (data[b].unreadMsg || 0) - (data[a].unreadMsg || 0);
+    var tsA = lastMessageCache[a] ? (lastMessageCache[a].timestamp || 0) : 0;
+    var tsB = lastMessageCache[b] ? (lastMessageCache[b].timestamp || 0) : 0;
+    return tsB - tsA;
   });
 
   for (var i = 0; i < sorted.length; i++) {
     (function(uid) {
       var user = data[uid];
       var displayName = getDisplayName(uid, user);
+      var initial = displayName.charAt(0).toUpperCase();
+      var unread = user.unreadMsg || 0;
+
+      // Get last message info
+      var lastMsg = lastMessageCache[uid];
+      var lastMsgText = lastMsg && lastMsg.text ? lastMsg.text : (unread > 0 ? unread + " new message(s)" : "No messages yet");
+      var lastMsgTime = lastMsg && lastMsg.timestamp ? formatTimeAgo(lastMsg.timestamp) : "";
+
+      // Prefix last message with sender indicator
+      var lastMsgDisplay = lastMsgText;
+      if (lastMsg && lastMsg.sender === "admin") {
+        lastMsgDisplay = "You: " + lastMsgText;
+      }
+
+      // Build tooltip with email and inGameUID if available
+      var email = getUserEmail(uid);
+      var inGameUID = getUserInGameUID(uid);
+      var tooltipParts = ["UID: " + uid];
+      if (email) tooltipParts.push("Email: " + email);
+      if (inGameUID) tooltipParts.push("InGameUID: " + inGameUID);
+      var tooltip = tooltipParts.join(" | ");
+
       var div = document.createElement("div");
       div.className = "user-item" + (uid === selectedUserUid ? " active" : "");
       div.setAttribute("data-uid", uid);
-      var initial = displayName.charAt(0).toUpperCase();
-      var unread = user.unreadMsg || 0;
-      div.innerHTML = '<div class="user-item-content"><div class="user-avatar">' + initial + '</div><div class="user-info"><div class="user-name">' + escapeHtml(displayName) + '</div><div class="last-msg">' + (unread > 0 ? unread + " new" : "No new messages") + '</div></div></div>' + (unread > 0 ? '<div class="badge">' + unread + "</div>" : "");
+      div.setAttribute("title", tooltip);
+
+      div.innerHTML =
+        '<div class="user-item-content">' +
+          '<div class="user-avatar">' + escapeHtml(initial) + '</div>' +
+          '<div class="user-info">' +
+            '<div class="user-name">' + escapeHtml(displayName) + '</div>' +
+            '<div class="last-msg">' +
+              '<span class="last-msg-text">' + escapeHtml(lastMsgDisplay) + '</span>' +
+              (lastMsgTime ? '<span class="last-msg-time">' + escapeHtml(lastMsgTime) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        (unread > 0 ? '<div class="badge">' + unread + '</div>' : '');
+
       div.addEventListener("click", function() { selectUser(uid, user); });
       userList.appendChild(div);
     })(sorted[i]);
@@ -247,10 +395,22 @@ function renderUserList(data) {
 }
 
 function selectUser(uid, userData) {
+  console.log("[CHAT] Admin manually selected user:", uid);
   selectedUserUid = uid;
+  userManuallySelected = true;
+
   var displayName = getDisplayName(uid, userData);
   chatHeaderName.textContent = displayName;
-  chatHeaderStatus.innerHTML = '<span class="chat-uid-text" title="Click to copy UID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' + escapeHtml(uid) + '</span> <button class="chat-uid-copy-btn" onclick="copyUserId(\'' + escapeHtml(uid) + '\')" title="Copy User ID"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
+
+  // Build status line with email + inGameUID if available
+  var email = getUserEmail(uid);
+  var inGameUID = getUserInGameUID(uid);
+  var statusParts = [];
+  if (inGameUID) statusParts.push("GameUID: " + inGameUID);
+  if (email) statusParts.push(email);
+  if (statusParts.length === 0) statusParts.push(uid);
+
+  chatHeaderStatus.innerHTML = '<span class="chat-uid-text" title="Click to copy UID" onclick="copyUserId(\'' + escapeHtml(uid) + '\')">' + escapeHtml(statusParts.join(" | ")) + '</span> <button class="chat-uid-copy-btn" onclick="copyUserId(\'' + escapeHtml(uid) + '\')" title="Copy User ID"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
   chatInputBar.style.display = "flex";
 
   // Update active state
@@ -260,7 +420,6 @@ function selectUser(uid, userData) {
     if (items[i].getAttribute("data-uid") === uid) items[i].classList.add("active");
   }
 
-  // Mobile: auto-hide user list after selecting a chat (smart auto-close)
   if (isMobile) {
     hideMobileChatSidebar();
   }
@@ -276,7 +435,6 @@ function copyUserId(uid) {
     navigator.clipboard.writeText(uid).then(function() {
       showChatToast("User ID copied!");
     }).catch(function() {
-      // Fallback
       fallbackCopy(uid);
     });
   } else {
@@ -300,7 +458,6 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
-// Small toast for copy feedback
 function showChatToast(message) {
   var existing = document.getElementById("chatToast");
   if (existing) existing.remove();
@@ -329,6 +486,18 @@ function loadSelectedUserChat(uid) {
       });
       for (var i = 0; i < keys.length; i++) appendMessage(keys[i], data[keys[i]]);
       scrollToBottom();
+
+      // Update last message cache for this user
+      if (keys.length > 0) {
+        var lastKey = keys[keys.length - 1];
+        var lastMsg = data[lastKey];
+        lastMessageCache[uid] = {
+          text: lastMsg.text || (lastMsg.imageUrl ? "📷 Image" : ""),
+          timestamp: lastMsg.timestamp || 0,
+          sender: lastMsg.sender || "user"
+        };
+        renderUserList(usersData);
+      }
     }
     markMessagesAsSeen(uid, "admin");
   });
@@ -362,7 +531,6 @@ function appendMessage(msgKey, msg) {
   div.addEventListener("touchmove", function() { clearTimeout(pt); });
 }
 
-// Context menu
 function showCtx(e, msgKey, msg) {
   contextMsgKey = msgKey; contextMsgData = msg;
   contextMenu.style.display = "block";
@@ -399,7 +567,6 @@ document.addEventListener("click", function(e) {
 
 if (replyClose) replyClose.addEventListener("click", function() { replyingTo = null; replyBar.style.display = "none"; });
 
-// Send text message
 async function sendTextMessage() {
   var text = msgInput.value.trim();
   if (!text || !selectedUserUid) return;
@@ -407,9 +574,16 @@ async function sendTextMessage() {
   var replyRef = replyingTo; replyingTo = null; replyBar.style.display = "none";
   await sendMessage(selectedUserUid, "admin", text, "", replyRef);
   sendPushNotification(selectedUserUid, text);
+
+  // Update last message cache immediately
+  lastMessageCache[selectedUserUid] = {
+    text: text,
+    timestamp: Date.now(),
+    sender: "admin"
+  };
+  renderUserList(usersData);
 }
 
-// Send image message
 async function sendImageMessage() {
   if (!selectedImageFile || !selectedUserUid) return;
   var fileToUpload = selectedImageFile; var replyRef = replyingTo;
@@ -424,6 +598,13 @@ async function sendImageMessage() {
     if (imageUrl) {
       await sendMessage(selectedUserUid, "admin", "", imageUrl, replyRef);
       sendPushNotification(selectedUserUid, "📷 Image");
+
+      lastMessageCache[selectedUserUid] = {
+        text: "📷 Image",
+        timestamp: Date.now(),
+        sender: "admin"
+      };
+      renderUserList(usersData);
     } else { uploadingDiv.remove(); showErrorBubble(); }
   } catch (error) { uploadingDiv.remove(); showErrorBubble(); }
 }
@@ -434,7 +615,6 @@ function showErrorBubble() {
   messagesContainer.appendChild(div); scrollToBottom();
 }
 
-// FCM push notification
 function sendPushNotification(uid, body) {
   fetch("/api/send-notification", {
     method: "POST",
@@ -443,7 +623,6 @@ function sendPushNotification(uid, body) {
   }).catch(function(err) { console.error("Push error:", err); });
 }
 
-// Image picker
 imgBtn.addEventListener("click", function() { imageInput.click(); });
 imageInput.addEventListener("change", function(e) {
   var file = e.target.files[0]; if (!file || !file.type.startsWith("image/")) return;
@@ -460,11 +639,9 @@ sendPreview.addEventListener("click", sendImageMessage);
 function closePreviewModal() { imagePreviewModal.style.display = "none"; previewImage.src = ""; selectedImageFile = null; }
 function openFullImage(src) { window.open(src, "_blank"); }
 
-// Chat input
 sendBtn.addEventListener("click", sendTextMessage);
 msgInput.addEventListener("keypress", function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTextMessage(); } });
 
-// Search
 searchInput.addEventListener("input", function(e) {
   var q = e.target.value.toLowerCase().trim();
   if (!q) { renderUserList(usersData); return; }
@@ -472,14 +649,18 @@ searchInput.addEventListener("input", function(e) {
   for (var i = 0; i < keys.length; i++) {
     var uid = keys[i];
     var displayName = getDisplayName(uid, usersData[uid]);
-    if (displayName.toLowerCase().indexOf(q) !== -1 || uid.toLowerCase().indexOf(q) !== -1) {
+    var email = getUserEmail(uid);
+    var inGameUID = getUserInGameUID(uid);
+    if (displayName.toLowerCase().indexOf(q) !== -1 ||
+        uid.toLowerCase().indexOf(q) !== -1 ||
+        (email && email.toLowerCase().indexOf(q) !== -1) ||
+        (inGameUID && inGameUID.toLowerCase().indexOf(q) !== -1)) {
       filtered[uid] = usersData[uid];
     }
   }
   renderUserList(filtered);
 });
 
-// Scroll utility
 function scrollToBottom() {
   if (messagesContainer) requestAnimationFrame(function() { messagesContainer.scrollTop = messagesContainer.scrollHeight; });
 }

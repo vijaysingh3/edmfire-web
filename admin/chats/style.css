@@ -92,7 +92,21 @@
 
 .user-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .user-name { font-size: 13px; font-weight: 500; color: #d8dae5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.last-msg { font-size: 11px; color: #5a5d72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.last-msg {
+  font-size: 11px; color: #6a6d82;
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.last-msg-text {
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.last-msg-time {
+  flex-shrink: 0;
+  font-size: 10px; color: #4a4d62;
+  font-weight: 500;
+}
+.user-item.active .last-msg-time { color: #7c6cf0; }
 
 .badge {
   min-width: 20px; height: 20px; border-radius: 10px;
