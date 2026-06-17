@@ -1,5 +1,7 @@
 // ============================================
 // EDMFire Admin - Users Management Logic
+// Search by UID (document ID), Email, or InGameUID
+// Firestore path: Users/{userId}
 // ============================================
 
 var searchInput = document.getElementById("searchInput");
@@ -19,6 +21,38 @@ function loadTotalUsersCount() {
   });
 }
 
+// ========== SHOW EMPTY STATE ==========
+function showEmpty(message) {
+  searchResults.innerHTML =
+    '<div class="results-empty">' +
+      '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+      '<p>' + escapeHtml(message) + '</p>' +
+    '</div>';
+}
+
+// ========== SHOW ERROR STATE ==========
+function showError(message) {
+  searchResults.innerHTML =
+    '<div class="results-empty">' +
+      '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+      '<p>Search error: ' + escapeHtml(message) + '</p>' +
+    '</div>';
+}
+
+// ========== DEDUPE RESULTS ==========
+function dedupeResults(results) {
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < results.length; i++) {
+    var uid = results[i].id;
+    if (!seen[uid]) {
+      seen[uid] = true;
+      out.push(results[i]);
+    }
+  }
+  return out;
+}
+
 // ========== SEARCH USERS ==========
 function searchUsers() {
   var query = searchInput.value.trim();
@@ -31,6 +65,8 @@ function searchUsers() {
     return;
   }
 
+  console.log("[USER-SEARCH] Query:", query);
+
   // Show loading
   searchResults.innerHTML =
     '<div class="results-loading">' +
@@ -39,80 +75,90 @@ function searchUsers() {
     '</div>';
 
   var db = firebase.firestore();
+  var hasAt = query.indexOf("@") !== -1;
 
-  // Check if query looks like an email (has @ symbol)
-  if (query.indexOf("@") !== -1) {
-    // Search by email
-    searchByEmail(query);
-  } else {
-    // Try as UID first — direct document lookup
-    db.collection("Users").doc(query).get().then(function(doc) {
-      if (doc.exists) {
-        renderResults([{ id: doc.id, data: doc.data() }]);
-      } else {
-        // Try InGameUID search next
-        searchByInGameUID(query);
+  if (hasAt) {
+    // Email search
+    console.log("[USER-SEARCH] Detected email, searching by email...");
+    db.collection("Users").where("email", "==", query).get().then(function(snapshot) {
+      console.log("[USER-SEARCH] Email search results:", snapshot.size);
+      if (snapshot.empty) {
+        showEmpty("No user found with this email");
+        return;
       }
+      var results = [];
+      snapshot.forEach(function(doc) {
+        results.push({ id: doc.id, data: doc.data() });
+      });
+      renderResults(results);
     }).catch(function(err) {
-      console.error("UID search error:", err);
-      // Try InGameUID search as fallback
-      searchByInGameUID(query);
+      console.error("[USER-SEARCH] Email search error:", err);
+      showError(err.message);
     });
+    return;
   }
-}
 
-// ========== SEARCH BY EMAIL ==========
-function searchByEmail(email) {
-  var db = firebase.firestore();
-  db.collection("Users").where("email", "==", email).get().then(function(snapshot) {
-    if (snapshot.empty) {
-      searchResults.innerHTML =
-        '<div class="results-empty">' +
-          '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-          '<p>No user found with this email</p>' +
-        '</div>';
-      return;
+  // No @ — parallel search by UID (document lookup) AND InGameUID (where query)
+  console.log("[USER-SEARCH] No @ detected, searching UID + InGameUID in parallel...");
+
+  var uidPromise = db.collection("Users").doc(query).get().then(function(doc) {
+    if (doc.exists) {
+      console.log("[USER-SEARCH] UID match found:", doc.id);
+      return [{ id: doc.id, data: doc.data() }];
     }
-
-    var results = [];
-    snapshot.forEach(function(doc) {
-      results.push({ id: doc.id, data: doc.data() });
-    });
-    renderResults(results);
+    console.log("[USER-SEARCH] No UID match");
+    return [];
   }).catch(function(err) {
-    searchResults.innerHTML =
-      '<div class="results-empty">' +
-        '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-        '<p>Search error: ' + escapeHtml(err.message) + '</p>' +
-      '</div>';
+    console.error("[USER-SEARCH] UID lookup error:", err);
+    return [];
   });
-}
 
-// ========== SEARCH BY InGameUID ==========
-function searchByInGameUID(inGameUID) {
-  var db = firebase.firestore();
-  db.collection("Users").where("InGameUID", "==", inGameUID).get().then(function(snapshot) {
-    if (snapshot.empty) {
-      // No match by UID, Email or InGameUID — show not found
-      searchResults.innerHTML =
-        '<div class="results-empty">' +
-          '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-          '<p>No user found with this UID, Email or InGameUID</p>' +
-        '</div>';
-      return;
-    }
-
+  var inGameUIDPromise = db.collection("Users").where("InGameUID", "==", query).get().then(function(snapshot) {
+    console.log("[USER-SEARCH] InGameUID matches:", snapshot.size);
     var results = [];
     snapshot.forEach(function(doc) {
       results.push({ id: doc.id, data: doc.data() });
     });
+    return results;
+  }).catch(function(err) {
+    console.error("[USER-SEARCH] InGameUID search error:", err);
+    return [];
+  });
+
+  // Also try by UserName (exact match) as a bonus
+  var userNamePromise = db.collection("Users").where("UserName", "==", query).get().then(function(snapshot) {
+    console.log("[USER-SEARCH] UserName matches:", snapshot.size);
+    var results = [];
+    snapshot.forEach(function(doc) {
+      results.push({ id: doc.id, data: doc.data() });
+    });
+    return results;
+  }).catch(function(err) {
+    console.error("[USER-SEARCH] UserName search error:", err);
+    return [];
+  });
+
+  Promise.all([uidPromise, inGameUIDPromise, userNamePromise]).then(function(arrays) {
+    // Merge all results
+    var all = [];
+    arrays.forEach(function(arr) {
+      arr.forEach(function(item) {
+        all.push(item);
+      });
+    });
+
+    console.log("[USER-SEARCH] Total merged results (before dedupe):", all.length);
+    var results = dedupeResults(all);
+    console.log("[USER-SEARCH] Final results (after dedupe):", results.length);
+
+    if (results.length === 0) {
+      showEmpty("No user found with this UID, Email or InGameUID");
+      return;
+    }
     renderResults(results);
   }).catch(function(err) {
-    searchResults.innerHTML =
-      '<div class="results-empty">' +
-        '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-        '<p>Search error: ' + escapeHtml(err.message) + '</p>' +
-      '</div>';
+    console.error("[USER-SEARCH] Final merge error:", err);
+    showError(err.message);
   });
 }
 
