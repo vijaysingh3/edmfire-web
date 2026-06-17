@@ -519,14 +519,14 @@ function fetchUserDetailsFromFirestore(uid) {
 }
 
 // ========== SHOW USER INFO MODAL ==========
-// Fetches ALL user data from Firestore and displays in a modal
+// Fetches ONLY UserName from Firestore and displays in a modal
 function showUserInfo(uid) {
   if (!uid) return;
   console.log("[CHAT] Show user info modal for:", uid);
 
   // Show modal with loading state
   userInfoModal.style.display = "flex";
-  userInfoBody.innerHTML = '<div class="user-info-loading">Loading user details from Firestore...</div>';
+  userInfoBody.innerHTML = '<div class="user-info-loading">Fetching UserName from Firestore...</div>';
 
   if (!firebase.firestore) {
     userInfoBody.innerHTML = '<div class="user-info-empty">Firestore not initialized</div>';
@@ -534,138 +534,57 @@ function showUserInfo(uid) {
   }
 
   var db = firebase.firestore();
+  console.log("[CHAT] Calling Firestore: Users/" + uid);
 
-  // Fetch user document from Firestore
+  // Fetch ONLY the user document
   db.collection("Users").doc(uid).get().then(function(doc) {
+    console.log("[CHAT] Firestore response received. Exists:", doc.exists);
+
     if (!doc.exists) {
+      console.warn("[CHAT] No Firestore document found for", uid);
       userInfoBody.innerHTML =
         '<div class="user-info-empty">No Firestore document found for this user.</div>' +
-        '<div class="user-info-row"><div class="user-info-row-label">UID (RTDB)</div><div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(uid) + '\')">' + escapeHtml(uid) + '</div></div>';
+        '<div class="user-info-row"><div class="user-info-row-label">UID</div><div class="user-info-row-value">' + escapeHtml(uid) + '</div></div>';
       return;
     }
 
     var data = doc.data();
-    console.log("[CHAT] Firestore user data:", data);
+    console.log("[CHAT] Firestore user data:", JSON.stringify(data, null, 2));
 
-    // Build display name from multiple possible fields
-    var userName = data.UserName || data.username || data.name || data.displayName || data.Name || "(not set)";
-    var email = data.email || data.Email || "(not set)";
-    var inGameUID = "";
-    if (data.InGameUID !== undefined && data.InGameUID !== null && data.InGameUID !== "") inGameUID = String(data.InGameUID);
-    else if (data.inGameUID !== undefined && data.inGameUID !== null && data.inGameUID !== "") inGameUID = String(data.inGameUID);
-    else inGameUID = "(not set)";
+    // Try multiple field name variants for UserName
+    var userName = data.UserName || data.username || data.name || data.displayName || data.Name || "";
 
-    var accountStatus = data.AccountStatus || "Active";
-    var freeFireVerified = data.freeFireVerified;
-    if (freeFireVerified === undefined) freeFireVerified = "(not set)";
+    // Render — ONLY show UserName
+    var initial = userName ? userName.charAt(0).toUpperCase() : "?";
 
-    var phone = data.phone || data.Phone || data.phoneNumber || "(not set)";
-    var createdAt = data.createdAt || data.CreatedAt;
-    var createdAtStr = "(not set)";
-    if (createdAt) {
-      try {
-        // Could be Firestore timestamp or epoch millis
-        var ms = typeof createdAt === "object" && createdAt.toMillis ? createdAt.toMillis() : (typeof createdAt === "number" ? createdAt : 0);
-        if (ms > 0) {
-          createdAtStr = new Date(ms).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-        }
-      } catch (e) { createdAtStr = String(createdAt); }
-    }
-
-    var winningCoins = data.WinningCoins;
-    var winningCoinsStr = winningCoins !== undefined ? "₹" + (Number(winningCoins) / 100).toFixed(2) + " (" + winningCoins + " paisa)" : "(not set)";
-
-    var depositCoins = data.DepositCoins;
-    var depositCoinsStr = depositCoins !== undefined ? "₹" + (Number(depositCoins) / 100).toFixed(2) + " (" + depositCoins + " paisa)" : "(not set)";
-
-    var bannedReason = data.BannedReason || "(none)";
-    var bannedPeriod = data.BannedPeriod || "(none)";
-
-    // Build avatar initial
-    var initial = (userName && userName !== "(not set)") ? userName.charAt(0).toUpperCase() : "?";
-
-    // Build modal body HTML
     var html = '';
     html += '<div class="user-info-avatar">' + escapeHtml(initial) + '</div>';
-    html += '<div class="user-info-display-name">' + escapeHtml(userName) + '</div>';
-    html += '<div class="user-info-subtitle">Firestore: Users/' + escapeHtml(uid.substring(0, 12)) + '...</div>';
+    html += '<div class="user-info-display-name">' + escapeHtml(userName || "(UserName not set in Firestore)") + '</div>';
+    html += '<div class="user-info-subtitle">Firestore: Users/' + escapeHtml(uid.substring(0, 16)) + '...</div>';
 
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">UID</div>';
-    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(uid) + '\')" title="Click to copy">' + escapeHtml(uid) + '</div>';
-    html += '</div>';
-
+    // Just one row — UserName
     html += '<div class="user-info-row">';
     html += '<div class="user-info-row-label">UserName</div>';
-    html += '<div class="user-info-row-value">' + escapeHtml(userName) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">Email</div>';
-    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(email) + '\')" title="Click to copy">' + escapeHtml(email) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">InGameUID</div>';
-    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(inGameUID) + '\')" title="Click to copy">' + escapeHtml(inGameUID) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">Phone</div>';
-    html += '<div class="user-info-row-value">' + escapeHtml(phone) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">Account Status</div>';
-    html += '<div class="user-info-row-value" style="color:' + (accountStatus === "Active" ? "#10b981" : "#ef4444") + ';">' + escapeHtml(accountStatus) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">Free Fire Verified</div>';
-    html += '<div class="user-info-row-value">' + escapeHtml(String(freeFireVerified)) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">WinningCoins</div>';
-    html += '<div class="user-info-row-value">' + escapeHtml(winningCoinsStr) + '</div>';
-    html += '</div>';
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">DepositCoins</div>';
-    html += '<div class="user-info-row-value">' + escapeHtml(depositCoinsStr) + '</div>';
-    html += '</div>';
-
-    if (accountStatus !== "Active") {
-      html += '<div class="user-info-row">';
-      html += '<div class="user-info-row-label">Banned Reason</div>';
-      html += '<div class="user-info-row-value">' + escapeHtml(bannedReason) + '</div>';
-      html += '</div>';
-
-      html += '<div class="user-info-row">';
-      html += '<div class="user-info-row-label">Banned Period</div>';
-      html += '<div class="user-info-row-value">' + escapeHtml(bannedPeriod) + '</div>';
-      html += '</div>';
-    }
-
-    html += '<div class="user-info-row">';
-    html += '<div class="user-info-row-label">Created At</div>';
-    html += '<div class="user-info-row-value">' + escapeHtml(createdAtStr) + '</div>';
+    html += '<div class="user-info-row-value clickable" onclick="copyText(\'' + escapeHtml(userName || "") + '\')" title="Click to copy">' + escapeHtml(userName || "(not set)") + '</div>';
     html += '</div>';
 
     userInfoBody.innerHTML = html;
 
-    // Update cache with fresh data
-    if (userName && userName !== "(not set)") {
+    // Cache for future use
+    if (userName) {
       firestoreUserNames[uid] = userName;
+      // Re-render user list to show the new name
+      renderUserList(usersData);
+      // Update chat header if this is the currently selected user
+      if (selectedUserUid === uid) {
+        chatHeaderName.textContent = userName;
+      }
     }
-    if (email && email !== "(not set)") firestoreUserNames[uid + "__email"] = email;
-    if (inGameUID && inGameUID !== "(not set)") firestoreUserNames[uid + "__inGameUID"] = inGameUID;
-
-    // Re-render sidebar to reflect any updated info
-    renderUserList(usersData);
   }).catch(function(err) {
-    console.error("[CHAT] Show user info error:", err);
-    userInfoBody.innerHTML = '<div class="user-info-empty">Error: ' + escapeHtml(err.message) + '</div>';
+    console.error("[CHAT] Firestore fetch FAILED for", uid, ":", err);
+    console.error("[CHAT] Error code:", err.code);
+    console.error("[CHAT] Error message:", err.message);
+    userInfoBody.innerHTML = '<div class="user-info-empty">Firestore error: ' + escapeHtml(err.message) + '<br><br>Check console for details.</div>';
   });
 }
 
