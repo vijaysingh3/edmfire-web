@@ -862,6 +862,63 @@ function scrollToBottom() {
   if (messagesContainer) requestAnimationFrame(function() { messagesContainer.scrollTop = messagesContainer.scrollHeight; });
 }
 
+// ========== TEST NOTIFICATION BUTTON ==========
+// Admin manually test kar sakta hai ki notifications kaam kar rahe hain ya nahi
+var testNotifBtn = document.getElementById("testNotifBtn");
+if (testNotifBtn) {
+  testNotifBtn.addEventListener("click", function() {
+    if (!confirm("Test notification bhejne ke liye OK karo. Browser me notification aana chahiye.")) return;
+
+    testNotifBtn.disabled = true;
+    testNotifBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sending...';
+
+    fetch("/api/test-admin-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Test Notification",
+        body: "Agar ye dikh raha hai to admin notifications kaam kar rahe hain!"
+      })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      console.log("[TEST-NOTIF] Response:", data);
+
+      if (data.success) {
+        showChatToast("✅ Test sent! Check browser notifications.");
+      } else {
+        showChatToast("❌ Failed: " + (data.message || "Unknown error"));
+      }
+
+      // Show detailed result in alert
+      var details = "Test Notification Result:\n\n";
+      details += "Success: " + (data.success ? "YES" : "NO") + "\n";
+      if (data.summary) {
+        details += "Total Admins: " + data.summary.totalAdmins + "\n";
+        details += "Sendable: " + data.summary.sendableAdmins + "\n";
+        details += "Success Count: " + data.summary.successCount + "\n";
+        details += "Failure Count: " + data.summary.failureCount + "\n";
+      }
+      if (data.sendResults && data.sendResults.length > 0) {
+        details += "\nPer-admin details:\n";
+        data.sendResults.forEach(function(r) {
+          details += "- " + r.email + ": " + (r.success ? "✅" : "❌ " + (r.error || "")) + "\n";
+        });
+      }
+      if (data.troubleshooting && data.troubleshooting.length > 0) {
+        details += "\nTroubleshooting:\n";
+        data.troubleshooting.forEach(function(t) { details += t + "\n"; });
+      }
+      alert(details);
+    }).catch(function(err) {
+      console.error("[TEST-NOTIF] Fetch error:", err);
+      showChatToast("❌ Network error");
+      alert("Network error: " + err.message);
+    }).finally(function() {
+      testNotifBtn.disabled = false;
+      testNotifBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Test Admin Notification';
+    });
+  });
+}
+
 // ========== INIT ==========
 initAuthGuard(function(user) {
   loadUsersList();

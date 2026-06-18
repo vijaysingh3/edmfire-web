@@ -12,9 +12,66 @@ if (!admin.apps.length) {
 }
 
 // In-memory debounce: same senderUid ke notifications ko 3 sec window me merge karte hain
-// Taaki agar user rapid messages bheje toh admin ko spam na mile
 const NOTIF_DEBOUNCE_MS = 3000;
-const debounceMap = new Map(); // key: senderUid → { lastSent: timestamp }
+const debounceMap = new Map();
+
+// Helper: Build absolute URL from request + relative path
+// FCM webpush.fcmOptions.link ko ABSOLUTE URL chahiye — relative nahi chalta
+function buildAbsoluteUrl(req, path) {
+  // Vercel pe x-forwarded-proto aur x-forwarded-host set hote hain
+  var proto = req.headers["x-forwarded-proto"] || (req.connection && req.connection.encrypted ? "https" : "http");
+  var host = req.headers["x-forwarded-host"] || req.headers["host"] || "edmfire.in";
+  return proto + "://" + host + path;
+}
+
+// Helper: send to single FCM token with proper webpush payload
+// Returns { success, error, token }
+async function sendToToken(token, notifTitle, notifBody, dataPayload, clickUrl) {
+  var absoluteLink = "";
+  try {
+    absoluteLink = buildAbsoluteUrl({}, clickUrl);
+  } catch (e) {
+    absoluteLink = clickUrl;
+  }
+
+  // SIMPLIFIED + VALID Webpush payload
+  // NOTE: webpush.notification me click_action INVALID hai — use fcmOptions.link
+  // NOTE: icon paths sirf unhi files ke liye use karo jo actually exist karti hain
+  var message = {
+    token: token,
+    notification: {
+      title: notifTitle,
+      body: notifBody
+    },
+    data: dataPayload,
+    webpush: {
+      notification: {
+        title: notifTitle,
+        body: notifBody,
+        tag: "edmfire-admin-chat",
+        requireInteraction: false,
+        // NOTE: icon deliberately omitted — agar file exist nahi karti toh
+        // kuch browsers (especially Chrome on some setups) silently fail karte hain
+        // Chrome default FCM icon use karega
+      },
+      fcmOptions: {
+        link: absoluteLink
+      }
+    }
+  };
+
+  try {
+    var messageId = await admin.messaging().send(message);
+    return { success: true, messageId: messageId, token: token.substring(0, 20) + "..." };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+      errorCode: err.code || "unknown",
+      token: token.substring(0, 20) + "..."
+    };
+  }
+}
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -25,19 +82,38 @@ module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { uid, title, body, target, userUid, senderUid } = req.body;
+    const { uid, title, body, target, userUid, senderUid } = req.body || {};
 
-    // target: "user" (default, existing behavior) | "admin" (single admin) | "allAdmins" (broadcast)
     const notifTarget = target || "user";
+    const notifTitle = title || "New Message";
+    const notifBody = body || "You have a new support message";
+
+    console.log("[NOTIF] Request received:", {
+      target: notifTarget,
+      uid: uid,
+      userUid: userUid,
+      senderUid: senderUid,
+      title: notifTitle,
+      body: notifBody
+    });
+
+    // Build data payload — saari values STRING honi chahiye (FCM requirement)
+    var dataPayload = {
+      type: "support_message",
+      title: String(notifTitle),
+      body: String(notifBody)
+    };
+    if (uid) dataPayload.uid = String(uid);
+    if (userUid) dataPayload.userUid = String(userUid);
+    if (senderUid) dataPayload.senderUid = String(senderUid);
 
     // ============ DEBOUNCE CHECK (admin notifications only) ============
-    // Agar senderUid diya gaya hai aur admin ko bhej rahe hain, toh 3 sec debounce lagao
-    // Same user ka next notification 3 sec baad hi jayega
     if (notifTarget === "allAdmins" || notifTarget === "admin") {
       const debounceKey = senderUid || userUid || uid || "anonymous";
       const now = Date.now();
       const last = debounceMap.get(debounceKey);
       if (last && (now - last) < NOTIF_DEBOUNCE_MS) {
+        console.log("[NOTIF] Debounced — too soon for", debounceKey);
         return res.status(200).json({
           sent: false,
           reason: "Debounced — too soon after last notification",
@@ -47,27 +123,6 @@ module.exports = async (req, res) => {
       debounceMap.set(debounceKey, now);
     }
 
-    // ============ BUILD NOTIFICATION PAYLOAD ============
-    const notifTitle = title || "New Message";
-    const notifBody = body || "You have a new support message";
-
-    // Data payload — for click action handling on client side
-    const dataPayload = {
-      type: "support_message",
-      title: notifTitle,
-      body: notifBody,
-    };
-    if (uid) dataPayload.uid = uid;
-    if (userUid) dataPayload.userUid = userUid;
-    if (senderUid) dataPayload.senderUid = senderUid;
-
-    const androidConfig = {
-      notification: {
-        channelId: "support_messages",
-        clickAction: "HELP_CENTER_ACTIVITY",
-      },
-    };
-
     // ============ TARGET: USER (existing behavior) ============
     if (notifTarget === "user") {
       if (!uid) return res.status(400).json({ error: "uid is required for target=user" });
@@ -76,76 +131,84 @@ module.exports = async (req, res) => {
       const fcmToken = snapshot.val();
 
       if (!fcmToken) {
+        console.log("[NOTIF] No FCM token for user:", uid);
         return res.status(200).json({ sent: false, reason: "No FCM token for user" });
       }
 
-      await admin.messaging().send({
-        token: fcmToken,
-        notification: { title: notifTitle, body: notifBody },
-        data: dataPayload,
-        android: androidConfig,
-      });
+      console.log("[NOTIF] Sending to user:", uid, "token:", fcmToken.substring(0, 20) + "...");
+      var userResult = await sendToToken(fcmToken, notifTitle, notifBody, dataPayload, "/user/");
 
-      return res.status(200).json({ sent: true, target: "user", uid: uid });
+      console.log("[NOTIF] User send result:", userResult);
+      return res.status(200).json({
+        sent: userResult.success,
+        target: "user",
+        uid: uid,
+        result: userResult
+      });
     }
 
-    // ============ TARGET: ALL ADMINS (broadcast — preferred) ============
+    // ============ TARGET: ALL ADMINS (broadcast) ============
     if (notifTarget === "allAdmins") {
       const adminsSnapshot = await admin.database().ref("helpCenter/admins").once("value");
       const adminsData = adminsSnapshot.val();
 
+      console.log("[NOTIF] Admins in RTDB:", adminsData ? Object.keys(adminsData).length : 0, "admins");
+
       if (!adminsData) {
-        return res.status(200).json({ sent: false, reason: "No admins registered" });
+        return res.status(200).json({ sent: false, reason: "No admins registered in RTDB" });
       }
 
-      // Collect all valid FCM tokens
-      const tokens = [];
-      const adminUids = [];
+      // Collect admin info
+      var adminList = [];
       for (const [adminUid, adminInfo] of Object.entries(adminsData)) {
         if (adminInfo && adminInfo.fcmToken && typeof adminInfo.fcmToken === "string") {
-          tokens.push(adminInfo.fcmToken);
-          adminUids.push(adminUid);
+          adminList.push({
+            uid: adminUid,
+            email: adminInfo.email || "",
+            token: adminInfo.fcmToken
+          });
         }
       }
 
-      if (tokens.length === 0) {
+      console.log("[NOTIF] Admins with valid FCM tokens:", adminList.length);
+
+      if (adminList.length === 0) {
         return res.status(200).json({ sent: false, reason: "No admin FCM tokens registered" });
       }
 
-      // Use multicast for efficiency (single API call for up to 500 tokens)
-      const multicastMessage = {
-        tokens: tokens,
-        notification: { title: notifTitle, body: notifBody },
-        data: dataPayload,
-        android: androidConfig,
-        webpush: {
-          notification: {
-            title: notifTitle,
-            body: notifBody,
-            icon: "/admin/icon-192.png",
-            badge: "/admin/badge-72.png",
-            tag: "edmfire-admin-chat",
-            requireInteraction: false,
-            click_action: "/admin/chats/" + (userUid ? "?uid=" + userUid : ""),
-          },
-          fcmOptions: {
-            link: "/admin/chats/" + (userUid ? "?uid=" + userUid : ""),
-          },
-        },
-      };
+      // Build click URL for deep-link
+      var clickUrl = "/admin/chats/" + (userUid ? "?uid=" + userUid : "");
 
-      const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+      // Send to each admin INDIVIDUALLY (more reliable than multicast, works with all SDK versions)
+      var sendPromises = adminList.map(function(admin) {
+        return sendToToken(admin.token, notifTitle, notifBody, dataPayload, clickUrl).then(function(result) {
+          return Object.assign({ adminUid: admin.uid, adminEmail: admin.email }, result);
+        });
+      });
+
+      var results = await Promise.all(sendPromises);
+
+      var successCount = results.filter(function(r) { return r.success; }).length;
+      var failureCount = results.length - successCount;
+
+      console.log("[NOTIF] Admin broadcast results:", {
+        total: results.length,
+        success: successCount,
+        failure: failureCount,
+        details: results
+      });
 
       return res.status(200).json({
-        sent: true,
+        sent: successCount > 0,
         target: "allAdmins",
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-        totalAdmins: tokens.length,
+        successCount: successCount,
+        failureCount: failureCount,
+        totalAdmins: results.length,
+        results: results
       });
     }
 
-    // ============ TARGET: SINGLE ADMIN (legacy/single) ============
+    // ============ TARGET: SINGLE ADMIN ============
     if (notifTarget === "admin") {
       if (!uid) return res.status(400).json({ error: "uid (admin uid) is required for target=admin" });
 
@@ -156,33 +219,20 @@ module.exports = async (req, res) => {
         return res.status(200).json({ sent: false, reason: "No FCM token for admin" });
       }
 
-      await admin.messaging().send({
-        token: fcmToken,
-        notification: { title: notifTitle, body: notifBody },
-        data: dataPayload,
-        android: androidConfig,
-        webpush: {
-          notification: {
-            title: notifTitle,
-            body: notifBody,
-            icon: "/admin/icon-192.png",
-            badge: "/admin/badge-72.png",
-            tag: "edmfire-admin-chat",
-            requireInteraction: false,
-            click_action: "/admin/chats/" + (userUid ? "?uid=" + userUid : ""),
-          },
-          fcmOptions: {
-            link: "/admin/chats/" + (userUid ? "?uid=" + userUid : ""),
-          },
-        },
-      });
+      var adminClickUrl = "/admin/chats/" + (userUid ? "?uid=" + userUid : "");
+      var singleResult = await sendToToken(fcmToken, notifTitle, notifBody, dataPayload, adminClickUrl);
 
-      return res.status(200).json({ sent: true, target: "admin", uid: uid });
+      return res.status(200).json({
+        sent: singleResult.success,
+        target: "admin",
+        uid: uid,
+        result: singleResult
+      });
     }
 
     return res.status(400).json({ error: "Invalid target. Must be 'user', 'admin', or 'allAdmins'" });
   } catch (error) {
-    console.error("Send notification error:", error);
-    return res.status(500).json({ error: error.message });
+    console.error("[NOTIF] Send notification FATAL error:", error);
+    return res.status(500).json({ error: error.message, stack: error.stack });
   }
 };
