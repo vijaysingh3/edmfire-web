@@ -7,7 +7,6 @@
 // Firestore handle — support page needs Firestore (for hosts collection lookup)
 function getFirestore() {
   if (!firebase.firestore) {
-    console.warn("[SUPPORT] Firestore SDK not loaded");
     return null;
   }
   return firebase.firestore();

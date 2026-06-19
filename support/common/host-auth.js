@@ -32,13 +32,11 @@ async function fetchHostProfile(authUid) {
     });
 
     if (!resp.ok) {
-      console.error("[SUPPORT-AUTH] helper-profile HTTP error:", resp.status, resp.statusText);
       return null;
     }
 
     var data = await resp.json();
     if (!data.success || !data.found) {
-      console.warn("[SUPPORT-AUTH] helper-profile: not found or not success", data);
       return null;
     }
 
@@ -47,7 +45,6 @@ async function fetchHostProfile(authUid) {
       hostData: data.hostData || {},
     };
   } catch (err) {
-    console.error("[SUPPORT-AUTH] fetchHostProfile error:", err);
     return null;
   }
 }

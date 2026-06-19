@@ -5,6 +5,8 @@
 // - Helper messages include helperUid + helperName + helperEmail (PINNED)
 // - Respects helperWrite permission: if "no", input disabled
 // - Helper name fetched from hosts/{hostId}/fullName (already loaded by auth guard)
+// - Mobile gestures: swipe right to open sidebar, swipe left to close
+// - Keyboard-aware: input stays visible when mobile keyboard opens
 // ============================================
 
 var selectedUserUid = null;
@@ -73,33 +75,103 @@ function getHelperUid() {
   return currentHelper ? currentHelper.uid : "";
 }
 
-// ========== SIDEBAR TOGGLE ==========
+// ========== SIDEBAR TOGGLE (fixed) ==========
+// Desktop (.collapsed) and mobile (.mobile-hidden) both work.
+// On mobile: also manage overlay.
+// Open button in chat-main header becomes visible via CSS sibling
+// selector when sidebar has .collapsed or .mobile-hidden.
 
-function toggleSidebar() {
+function openSidebar() {
   if (isMobile) {
-    if (chatSidebar.classList.contains("mobile-hidden")) {
-      chatSidebar.classList.remove("mobile-hidden");
-      sidebarOverlay.classList.add("active");
-    } else {
-      chatSidebar.classList.add("mobile-hidden");
-      sidebarOverlay.classList.remove("active");
-    }
+    chatSidebar.classList.remove("mobile-hidden");
+    sidebarOverlay.classList.add("active");
   } else {
-    chatSidebar.classList.toggle("collapsed");
+    chatSidebar.classList.remove("collapsed");
   }
 }
 
-if (chatSidebarToggle) chatSidebarToggle.addEventListener("click", toggleSidebar);
+function closeSidebar() {
+  if (isMobile) {
+    chatSidebar.classList.add("mobile-hidden");
+    sidebarOverlay.classList.remove("active");
+  } else {
+    chatSidebar.classList.add("collapsed");
+  }
+}
+
+function toggleSidebar() {
+  if (isMobile) {
+    if (chatSidebar.classList.contains("mobile-hidden")) openSidebar();
+    else closeSidebar();
+  } else {
+    if (chatSidebar.classList.contains("collapsed")) openSidebar();
+    else closeSidebar();
+  }
+}
+
+if (chatSidebarToggle) chatSidebarToggle.addEventListener("click", closeSidebar);
 if (hamburgerBtn) hamburgerBtn.addEventListener("click", toggleSidebar);
-if (chatSidebarOpenBtn) chatSidebarOpenBtn.addEventListener("click", toggleSidebar);
-if (sidebarOverlay) sidebarOverlay.addEventListener("click", function() {
-  chatSidebar.classList.add("mobile-hidden");
-  sidebarOverlay.classList.remove("active");
-});
-if (chatBackBtn) chatBackBtn.addEventListener("click", function() {
-  chatSidebar.classList.remove("mobile-hidden");
-  sidebarOverlay.classList.remove("active");
-});
+if (chatSidebarOpenBtn) chatSidebarOpenBtn.addEventListener("click", openSidebar);
+if (sidebarOverlay) sidebarOverlay.addEventListener("click", closeSidebar);
+if (chatBackBtn) chatBackBtn.addEventListener("click", closeSidebar);
+
+// ========== MOBILE SWIPE GESTURES ==========
+// Swipe right (from left edge) opens sidebar; swipe left closes it.
+(function () {
+  var touchStartX = 0;
+  var touchStartY = 0;
+  var touchStartTime = 0;
+  var EDGE_THRESHOLD = 40;     // px from left edge to start swipe-to-open
+  var SWIPE_DISTANCE = 70;     // minimum px to register a swipe
+  var SWIPE_MAX_TIME = 500;    // ms — swipe must be quick
+  var SWIPE_VERTICAL_DRIFT = 80; // max vertical drift allowed
+
+  document.addEventListener("touchstart", function (e) {
+    if (!e.touches || !e.touches[0]) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  document.addEventListener("touchend", function (e) {
+    if (!e.changedTouches || !e.changedTouches[0]) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    var dy = e.changedTouches[0].clientY - touchStartY;
+    var dt = Date.now() - touchStartTime;
+    if (dt > SWIPE_MAX_TIME) return;
+    if (Math.abs(dy) > SWIPE_VERTICAL_DRIFT) return; // ignore vertical scrolls
+
+    // Swipe right to open — only if started near left edge AND sidebar is hidden
+    if (dx > SWIPE_DISTANCE && touchStartX < EDGE_THRESHOLD) {
+      if (isMobile && chatSidebar.classList.contains("mobile-hidden")) {
+        openSidebar();
+      }
+      return;
+    }
+
+    // Swipe left to close — only if sidebar is currently visible
+    if (dx < -SWIPE_DISTANCE) {
+      if (isMobile && !chatSidebar.classList.contains("mobile-hidden")) {
+        closeSidebar();
+      }
+    }
+  }, { passive: true });
+})();
+
+// ========== KEYBOARD-AWARE INPUT BAR ==========
+// On mobile, when keyboard opens, the input bar should stay visible.
+// Use the Visual Viewport API to adjust layout.
+if (window.visualViewport) {
+  var _vvHandler = function () {
+    // When keyboard opens, scroll the active input into view
+    var active = document.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+      try { active.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+    }
+  };
+  window.visualViewport.addEventListener("resize", _vvHandler);
+  window.visualViewport.addEventListener("scroll", _vvHandler);
+}
 
 // ========== LOGOUT ==========
 if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener("click", handleHostLogout);
@@ -108,7 +180,7 @@ if (mobileLogoutBtn) mobileLogoutBtn.addEventListener("click", handleHostLogout)
 // ========== INIT AFTER AUTH GUARD ==========
 initSupportAuthGuard(function(user, hostData, hostDocId) {
   // Auth guard has already verified permission & set globals
-  console.log("[SUPPORT-CHAT] Authenticated as helper:", getHelperName(), "write:", canWrite());
+  // (console muted by security.js — no PII leak)
 
   // Update permission badge
   if (helperPermBadge) {
@@ -119,6 +191,12 @@ initSupportAuthGuard(function(user, hostData, hostDocId) {
       helperPermBadge.textContent = "Read only";
       helperPermBadge.style.color = "#fbbf24";
     }
+  }
+
+  // On mobile, start with sidebar open so helper sees conversations
+  // On desktop, start with sidebar visible (default state — no class)
+  if (isMobile) {
+    // Already open by default — no action needed
   }
 
   // Start loading users
@@ -152,10 +230,8 @@ function listenForPermissionChanges() {
     firebase.database().ref(rtdbPath).on("value", function(snap) {
       var perm = snap.val();
       if (!perm) {
-        // Path doesn't exist yet — admin hasn't toggled permissions via
-        // Helper Manager, or the mirror write failed. Don't sign out
-        // (initial state from /api/helper-profile is authoritative here).
-        console.warn("[SUPPORT-PERM] No RTDB mirror yet — skipping update");
+        // Path doesn't exist yet — initial state from /api/helper-profile
+        // is authoritative here. Skip the update.
         return;
       }
 
@@ -181,10 +257,10 @@ function listenForPermissionChanges() {
         }
       }
     }, function(err) {
-      console.warn("[SUPPORT-PERM] Listener error:", err);
+      // Listener error — non-fatal, permission check already done at login
     });
   } catch (e) {
-    console.warn("[SUPPORT-PERM] Could not start listener:", e);
+    // Could not start listener — non-fatal
   }
 }
 
@@ -223,8 +299,7 @@ function loadUsersList() {
     usersData = snapshot.val() || {};
     renderUserList();
   }, function(err) {
-    console.error("[SUPPORT] loadUsersList error:", err);
-    if (userList) userList.innerHTML = '<div class="empty-placeholder">Error loading users</div>';
+    if (userList) userList.innerHTML = '<div class="empty-placeholder">Error loading users. Please refresh.</div>';
   });
 }
 
@@ -334,8 +409,7 @@ function selectUser(uid) {
 
   // On mobile — hide sidebar, show chat
   if (isMobile) {
-    chatSidebar.classList.add("mobile-hidden");
-    if (sidebarOverlay) sidebarOverlay.classList.remove("active");
+    closeSidebar();
   }
 
   // Load messages
@@ -361,7 +435,7 @@ function loadMessagesForUser(uid) {
     updateLastMessageCache(uid, data);
     renderUserList(); // refresh sidebar preview
   }, function(err) {
-    console.error("[SUPPORT] loadMessagesForUser error:", err);
+    // Permission or network error — render existing cache if any
   });
 }
 
@@ -558,7 +632,6 @@ async function sendHelperTextMessage() {
     // Notify user (background, non-blocking)
     notifyUserOfHelperMessage(selectedUserUid, text);
   } catch (error) {
-    console.error("[SUPPORT] sendHelperTextMessage error:", error);
     showErrorBubble("Failed to send");
   }
 }
@@ -615,10 +688,8 @@ function sendHelperMessage(userUid, text, imageUrl, replyTo) {
 
     ref.push(newMsg, function(error) {
       if (error) {
-        console.error("[SUPPORT] Send message error:", error);
         resolve(false);
       } else {
-        console.log("[SUPPORT] Helper message sent");
         resolve(true);
       }
     });
@@ -641,10 +712,10 @@ function notifyUserOfHelperMessage(userUid, body) {
         senderName: getHelperName()
       })
     }).catch(function(err) {
-      console.warn("[SUPPORT] Notify user failed (non-blocking):", err);
+      // Notification failed — non-blocking
     });
   } catch (e) {
-    console.warn("[SUPPORT] Notify init failed:", e);
+    // Notify init failed — non-blocking
   }
 }
 
@@ -709,7 +780,42 @@ function scrollToBottom() {
   });
 }
 
-// Resize handler
+// Resize handler — recompute mobile flag & ensure sidebar state matches viewport
 window.addEventListener("resize", function() {
+  var wasMobile = isMobile;
   isMobile = window.innerWidth <= 768;
+  // If crossed the breakpoint, reset sidebar state for the new viewport
+  if (wasMobile !== isMobile) {
+    if (isMobile) {
+      // Switching to mobile: clear desktop collapse, use mobile-hidden if needed
+      chatSidebar.classList.remove("collapsed");
+      // On mobile we start with sidebar visible; if previously collapsed on desktop,
+      // show it now.
+      chatSidebar.classList.remove("mobile-hidden");
+      if (sidebarOverlay) sidebarOverlay.classList.remove("active");
+    } else {
+      // Switching to desktop: clear mobile state
+      chatSidebar.classList.remove("mobile-hidden");
+      if (sidebarOverlay) sidebarOverlay.classList.remove("active");
+    }
+  }
 });
+
+// ========== PREVENT BODY SCROLL ON iOS WHEN DRAGGING OUTSIDE SCROLL CONTAINERS ==========
+document.addEventListener("touchmove", function (e) {
+  // Allow scrolling inside scrollable containers; block body scroll otherwise
+  var target = e.target;
+  while (target && target !== document.body) {
+    if (target.classList && (target.classList.contains("chat-messages") ||
+        target.classList.contains("chat-user-list"))) {
+      return; // allow
+    }
+    target = target.parentNode;
+  }
+  // Not inside a scroll container — prevent rubber-band scroll
+  // (But don't break inputs)
+  if (e.target && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+    // Allow normal touch — only block if needed. Uncomment to enforce:
+    // e.preventDefault();
+  }
+}, { passive: true });

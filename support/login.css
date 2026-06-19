@@ -15,6 +15,8 @@ html, body {
   background: linear-gradient(135deg, #0c0e1a 0%, #151829 50%, #1c1f3a 100%);
   display: flex; align-items: center; justify-content: center;
   z-index: 9999;
+  /* Honour notch / safe areas */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 
 .login-card {
@@ -40,20 +42,21 @@ html, body {
 .login-field {
   display: flex; align-items: center; gap: 10px;
   border: 2px solid #2a2d42; border-radius: 12px;
-  padding: 0 14px; height: 48px;
+  padding: 0 14px; height: 52px;
   background: #12141f;
   transition: border-color 0.2s;
 }
 .login-field:focus-within { border-color: #10b981; }
 .login-field input {
   flex: 1; border: none; background: transparent;
-  font-size: 14px; outline: none; font-family: 'Poppins', sans-serif;
-  height: 100%; color: #d8dae5;
+  font-size: 16px; outline: none; font-family: 'Poppins', sans-serif;
+  /* 16px prevents iOS zoom-on-focus */
+  height: 100%; color: #d8dae5; min-width: 0;
 }
 .login-field input::placeholder { color: #5a5d72; }
 
 .login-btn {
-  height: 48px; border: none; border-radius: 12px;
+  height: 52px; border: none; border-radius: 12px;
   background: linear-gradient(135deg, #10b981, #34d399);
   color: #ffffff; font-size: 15px; font-weight: 600;
   cursor: pointer; font-family: 'Poppins', sans-serif;

@@ -48,7 +48,6 @@ onAuthChange(function(user) {
       signOutUser();
     }
   }).catch(function(err) {
-    console.error("[SUPPORT-LOGIN] Permission check error:", err);
     hideLoading();
   });
 });
@@ -87,9 +86,9 @@ helperEmail.addEventListener("keypress", function(e) { if (e.key === "Enter") he
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/support/sw.js').then(function(reg) {
-      console.log('[SUPPORT-SW] Registered:', reg.scope);
+      // SW registered
     }).catch(function(err) {
-      console.warn('[SUPPORT-SW] Registration failed:', err);
+      // SW registration failed — non-fatal
     });
   });
 }

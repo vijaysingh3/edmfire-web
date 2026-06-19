@@ -56,7 +56,6 @@ function initSupportAuthGuard(callback) {
 
       if (callback) callback(user, result.hostData, result.hostDocId);
     }).catch(function(err) {
-      console.error("[SUPPORT-GUARD] Permission check error:", err);
       if (loadingEl) loadingEl.style.display = "none";
       showSupportAccessDenied("permission-check-error");
       setTimeout(function() {

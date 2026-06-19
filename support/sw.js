@@ -3,7 +3,7 @@
 // Caches support page assets for fast reload after first login
 // ============================================
 
-var CACHE_NAME = 'support-v2';
+var CACHE_NAME = 'support-v3';
 
 var CACHE_URLS = [
   '/support/',
@@ -17,6 +17,7 @@ var CACHE_URLS = [
   '/support/common/firebase-init.js',
   '/support/common/host-auth.js',
   '/support/common/nav.js',
+  '/support/common/security.js',
   '/firebase/auth.js',
   '/firebase/database.js',
   '/firebase/storage.js'
