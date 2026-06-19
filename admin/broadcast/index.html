@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>EDMFire Admin - Host Withdrawals</title>
+  <title>EDMFire Admin - Broadcast Notification</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../common/layout.css">
@@ -16,7 +16,7 @@
       <button class="hamburger-btn" id="hamburgerBtn">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <span class="mobile-topbar-title">Host Withdrawals</span>
+      <span class="mobile-topbar-title">Broadcast</span>
       <button class="mobile-topbar-logout" id="mobileLogoutBtn" title="Sign Out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -45,6 +45,7 @@
         <a class="nav-item" href="/admin/chats/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Support Chats</span>
+          <div class="nav-badge" id="navChatBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/world-chat-rooms/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -59,10 +60,9 @@
           <span>Withdrawals</span>
           <div class="nav-badge" id="navWithdrawalBadge" style="display:none;">0</div>
         </a>
-        <a class="nav-item active" href="/admin/host-withdrawals/">
+        <a class="nav-item" href="/admin/host-withdrawals/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Host Withdrawals</span>
-          <div class="nav-badge" id="navHostWDBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/verified-hosts/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
@@ -76,15 +76,11 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Players</span>
         </a>
-        <a class="nav-item" href="/admin/wallet/">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <span>Wallet</span>
-        </a>
         <a class="nav-item" href="/admin/notifications/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span>Notifications</span>
         </a>
-        <a class="nav-item" href="/admin/broadcast/">
+        <a class="nav-item active" href="/admin/broadcast/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
           <span>Broadcast</span>
         </a>
@@ -117,60 +113,63 @@
     <div class="main-content">
       <div class="page-content">
         <div class="page-header">
-          <h1 class="page-title">Host Withdrawals</h1>
-          <p class="page-subtitle">Manage host withdrawal requests</p>
+          <h1 class="page-title">📢 Broadcast Notification</h1>
+          <p class="page-subtitle">Send push notification to all players via Cloud Function</p>
         </div>
 
-        <!-- Stats Bar -->
-        <div class="wd-stats-bar">
-          <div class="wd-stat">
-            <span class="wd-stat-value" id="wdTotalCount">0</span>
-            <span class="wd-stat-label">Total</span>
+        <!-- Composer Card -->
+        <div class="bc-card">
+          <div class="bc-form-row">
+            <label for="notifTitle">Notification Title</label>
+            <input
+              type="text"
+              id="notifTitle"
+              placeholder="🎉 New Tournament Alert!"
+              maxlength="100"
+              autocomplete="off"
+            />
           </div>
-          <div class="wd-stat">
-            <span class="wd-stat-value wd-stat-pending" id="wdPendingCount">0</span>
-            <span class="wd-stat-label">Pending</span>
+
+          <div class="bc-form-row">
+            <label for="notifBody">Notification Body</label>
+            <textarea
+              id="notifBody"
+              rows="4"
+              placeholder="Join the new BattleRoyal tournament and win big prizes!"
+              maxlength="500"
+            ></textarea>
+            <div class="bc-char-count"><span id="bodyCharCount">0</span>/500</div>
           </div>
-          <div class="wd-stat">
-            <span class="wd-stat-value wd-stat-completed" id="wdCompletedCount">0</span>
-            <span class="wd-stat-label">Completed</span>
-          </div>
-          <div class="wd-stat">
-            <span class="wd-stat-value wd-stat-refunded" id="wdRefundedCount">0</span>
-            <span class="wd-stat-label">Refunded</span>
-          </div>
-          <div class="wd-stat">
-            <span class="wd-stat-value wd-stat-rejected" id="wdRejectedCount">0</span>
-            <span class="wd-stat-label">Rejected</span>
+
+          <div class="bc-actions">
+            <button id="sendBtn" class="bc-btn-send" disabled>
+              <span class="bc-btn-icon">🚀</span>
+              <span class="bc-btn-text">Send to All Players</span>
+            </button>
+            <button id="clearBtn" class="bc-btn-clear">Clear</button>
           </div>
         </div>
 
-        <!-- Filter Tabs -->
-        <div class="wd-filter-tabs">
-          <button class="wd-filter-tab active" data-filter="pending">Pending</button>
-          <button class="wd-filter-tab" data-filter="completed">Completed</button>
-          <button class="wd-filter-tab" data-filter="refunded">Refunded</button>
-          <button class="wd-filter-tab" data-filter="rejected">Rejected</button>
-          <button class="wd-filter-tab" data-filter="all">All</button>
-        </div>
+        <!-- Logcat Card -->
+        <div class="bc-logcat-card">
+          <div class="bc-logcat-header">
+            <div class="bc-logcat-title">
+              <span class="bc-logcat-dot"></span>
+              <h2>Live Logcat</h2>
+            </div>
+            <div class="bc-logcat-controls">
+              <span class="bc-logcat-status" id="logStatus">IDLE</span>
+              <button id="clearLogBtn" class="bc-btn-mini">Clear Log</button>
+              <button id="copyLogBtn" class="bc-btn-mini">Copy</button>
+            </div>
+          </div>
 
-        <!-- Search Bar -->
-        <div class="wd-search-bar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5a5d72" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="wdSearchInput" placeholder="Search by Host Name, Host ID or Bank Detail...">
-          <button class="wd-search-clear" id="wdSearchClear" style="display:none;" title="Clear search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <!-- Results Count -->
-        <div class="wd-results-count" id="wdResultsCount">Loading...</div>
-
-        <!-- Withdrawal Cards List -->
-        <div class="wd-list" id="wdList">
-          <div class="wd-loading">
-            <div class="wd-loading-spinner"></div>
-            <span>Loading host withdrawals...</span>
+          <div class="bc-logcat-screen" id="logcatScreen">
+            <div class="bc-log-line bc-log-system">
+              <span class="bc-log-time">[--:--:--]</span>
+              <span class="bc-log-tag">[SYSTEM]</span>
+              <span class="bc-log-msg">Logcat ready. Fill the form and click Send.</span>
+            </div>
           </div>
         </div>
       </div>
