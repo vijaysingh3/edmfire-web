@@ -2,27 +2,49 @@
 // EDMFire Support - Host Auth & Permission Logic
 // Host logs in with Firebase Auth (email/password).
 // Then we verify they have a hosts/{hostId} doc with status="verified" AND helperRead="yes".
-// Permission mirror in RTDB at helpCenter/helperAccess/{authUid} for fast security rule checks.
+//
+// IMPORTANT: Hosts CANNOT read their own `hosts/{hostId}` doc directly via
+// client-side Firestore (security rules only allow admins). So we fetch the
+// profile via the server-side /api/helper-profile endpoint (Firebase Admin
+// SDK bypasses security rules). The caller's ID token is verified server-side
+// to prevent impersonation.
+//
+// Permission mirror in RTDB at helpCenter/helperAccess/{authUid} is also
+// refreshed on each login — the support chats page listens to this path for
+// real-time permission updates (instead of failing Firestore onSnapshot).
 // ============================================
 
-// ============ FETCH HOST PROFILE BY AUTH UID ============
+// ============ FETCH HOST PROFILE VIA SERVER API ============
 // Returns: { hostDocId, hostData } or null
 async function fetchHostProfile(authUid) {
   if (!authUid) return null;
-  var db = getFirestore();
-  if (!db) return null;
 
   try {
-    // hosts collection me authUid field se query
-    var q = db.collection("hosts").where("authUid", "==", authUid).limit(1);
-    var snap = await q.get();
+    // Get the caller's current ID token (1-hour validity, auto-refreshed by Firebase)
+    var user = firebase.auth().currentUser;
+    if (!user) return null;
+    var idToken = await user.getIdToken(/* forceRefresh */ false);
 
-    if (snap.empty) return null;
+    var resp = await fetch("/api/helper-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: idToken }),
+    });
 
-    var doc = snap.docs[0];
+    if (!resp.ok) {
+      console.error("[SUPPORT-AUTH] helper-profile HTTP error:", resp.status, resp.statusText);
+      return null;
+    }
+
+    var data = await resp.json();
+    if (!data.success || !data.found) {
+      console.warn("[SUPPORT-AUTH] helper-profile: not found or not success", data);
+      return null;
+    }
+
     return {
-      hostDocId: doc.id,
-      hostData: doc.data() || {}
+      hostDocId: data.hostDocId,
+      hostData: data.hostData || {},
     };
   } catch (err) {
     console.error("[SUPPORT-AUTH] fetchHostProfile error:", err);
@@ -55,7 +77,7 @@ async function checkHelperPermission(user) {
   return {
     allowed: true,
     hostData: data,
-    hostDocId: profile.hostDocId
+    hostDocId: profile.hostDocId,
   };
 }
 

@@ -3,7 +3,7 @@
 // Caches support page assets for fast reload after first login
 // ============================================
 
-var CACHE_NAME = 'support-v1';
+var CACHE_NAME = 'support-v2';
 
 var CACHE_URLS = [
   '/support/',

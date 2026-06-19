@@ -137,34 +137,48 @@ initSupportAuthGuard(function(user, hostData, hostDocId) {
 
 // ========== LISTEN FOR PERMISSION CHANGES ==========
 // If admin revokes helperRead or helperWrite while helper is online,
-// we reflect that immediately (or sign out if helperRead revoked)
+// we reflect that immediately (or sign out if helperRead revoked).
+//
+// IMPORTANT: We listen on RTDB helpCenter/helperAccess/{authUid} (NOT Firestore),
+// because Firestore security rules don't allow hosts to read their own
+// hosts/{docId} doc directly. The RTDB mirror is updated by the admin
+// Helper Manager page (and also refreshed server-side by /api/helper-profile
+// on every login).
 function listenForPermissionChanges() {
-  if (!currentHostDocId) return;
-  var db = getFirestore();
-  if (!db) return;
+  if (!currentHelper) return;
 
+  var rtdbPath = "helpCenter/helperAccess/" + currentHelper.uid;
   try {
-    db.collection("hosts").doc(currentHostDocId).onSnapshot(function(doc) {
-      if (!doc.exists) {
-        console.warn("[SUPPORT-PERM] Host doc deleted — signing out");
-        handleHostLogout();
+    firebase.database().ref(rtdbPath).on("value", function(snap) {
+      var perm = snap.val();
+      if (!perm) {
+        // Path doesn't exist yet — admin hasn't toggled permissions via
+        // Helper Manager, or the mirror write failed. Don't sign out
+        // (initial state from /api/helper-profile is authoritative here).
+        console.warn("[SUPPORT-PERM] No RTDB mirror yet — skipping update");
         return;
       }
-      var newData = doc.data();
-      var oldRead = currentHostData.helperRead;
-      var oldWrite = currentHostData.helperWrite;
-      currentHostData = newData;
+
+      var newRead = perm.helperRead === "yes";
+      var newWrite = perm.helperWrite === "yes";
 
       // If read revoked → sign out
-      if (newData.helperRead !== "yes") {
+      if (!newRead) {
         alert("Your helper access has been revoked by admin. You will be signed out.");
         handleHostLogout();
         return;
       }
 
-      // If write permission changed → update UI
-      if (oldWrite !== newData.helperWrite) {
-        updateWritePermissionUI();
+      // Update host data with latest permissions (preserve name/email from API)
+      if (currentHostData) {
+        var oldWrite = currentHostData.helperWrite;
+        currentHostData.helperRead = "yes";
+        currentHostData.helperWrite = newWrite ? "yes" : "no";
+
+        // If write permission changed → update UI
+        if (oldWrite !== currentHostData.helperWrite) {
+          updateWritePermissionUI();
+        }
       }
     }, function(err) {
       console.warn("[SUPPORT-PERM] Listener error:", err);
