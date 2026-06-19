@@ -293,6 +293,7 @@ function clearChat() {
 function appendMessage(msgKey, msg) {
   if (!chatContainer) return;
   var div = document.createElement("div");
+  // Sender "user" → right side (user bubble). "helper" & "admin" → left side (white bubble)
   div.className = "message " + (msg.sender === "user" ? "user" : "admin");
   div.setAttribute("data-key", msgKey);
 
@@ -301,6 +302,13 @@ function appendMessage(msgKey, msg) {
   if (msg.replyTo && allMessagesData[msg.replyTo]) {
     var orig = allMessagesData[msg.replyTo];
     content += '<div class="msg-reply">' + escapeHtml((orig.text || "📷 Image").substring(0, 60)) + '</div>';
+  }
+
+  // === HELPER NAME PIN ===
+  // Helper messages show the helper's UserName at the top of the bubble
+  // (admins saw "Admin" before — that's still fine because admin messages have no helperName)
+  if (msg.sender === "helper" && msg.helperName) {
+    content += '<div class="msg-helper-name">🛟 ' + escapeHtml(msg.helperName) + '</div>';
   }
 
   if (msg.text) {

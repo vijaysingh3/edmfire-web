@@ -1,10 +1,13 @@
 {
   "redirects": [
     { "source": "/", "destination": "/admin/", "permanent": false },
-    { "source": "/user", "destination": "/user/", "permanent": false }
+    { "source": "/user", "destination": "/user/", "permanent": false },
+    { "source": "/support", "destination": "/support/", "permanent": false }
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/admin/", "destination": "/admin/index.html" }
+    { "source": "/admin/", "destination": "/admin/index.html" },
+    { "source": "/support", "destination": "/support/index.html" },
+    { "source": "/support/", "destination": "/support/index.html" }
   ]
 }

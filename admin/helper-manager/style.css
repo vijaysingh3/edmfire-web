@@ -1,0 +1,190 @@
+/* ============================================
+   EDMFire Admin - Helper Manager Styles
+   ============================================ */
+
+.page-content {
+  padding: 24px 28px;
+  max-width: 1200px;
+  margin: 0 auto;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.page-header { margin-bottom: 20px; }
+.page-title { font-size: 22px; font-weight: 700; color: #e8e9f0; margin-bottom: 4px; }
+.page-subtitle { font-size: 13px; color: #7c7f96; }
+
+/* ========== INFO BANNER ========== */
+.hm-info-banner {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 18px; margin-bottom: 20px;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 12px;
+  color: #a7f3d0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hm-info-banner svg { flex-shrink: 0; margin-top: 2px; color: #10b981; }
+.hm-info-banner code {
+  background: #12141f; padding: 2px 8px;
+  border-radius: 4px; font-family: monospace;
+  color: #10b981; font-size: 12px;
+}
+.hm-info-banner em { color: #6ee7b7; font-style: normal; font-weight: 600; }
+
+/* ========== STATS BAR ========== */
+.hm-stats-bar {
+  display: flex; gap: 14px; margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.hm-stat {
+  flex: 1; min-width: 180px;
+  padding: 16px 20px;
+  background: #1a1d2e; border-radius: 12px;
+  border: 1px solid #2a2d42;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.hm-stat-value { font-size: 28px; font-weight: 700; color: #e8e9f0; }
+.hm-stat-label { font-size: 12px; color: #7c7f96; }
+
+/* ========== SEARCH BAR ========== */
+.hm-search-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; height: 44px;
+  background: #1a1d2e; border: 1px solid #2a2d42;
+  border-radius: 10px; margin-bottom: 18px;
+}
+.hm-search-bar input {
+  flex: 1; border: none; background: transparent;
+  font-size: 14px; outline: none;
+  font-family: 'Poppins', sans-serif; color: #d8dae5;
+}
+.hm-search-bar input::placeholder { color: #5a5d72; }
+
+/* ========== HOSTS LIST ========== */
+.hm-hosts-list {
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.hm-loading, .hm-empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; padding: 60px 20px; color: #5a5d72;
+  text-align: center;
+}
+.hm-loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #2a2d42; border-top: 3px solid #7c6cf0;
+  border-radius: 50%; animation: hmSpin 0.8s linear infinite;
+}
+@keyframes hmSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.hm-empty h2 { font-size: 18px; color: #9d9fb5; }
+.hm-empty p { font-size: 13px; }
+
+/* ========== HOST CARD ========== */
+.hm-host-card {
+  background: #1a1d2e; border: 1px solid #2a2d42;
+  border-radius: 14px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 16px;
+  transition: border-color 0.2s;
+}
+.hm-host-card.active-helper { border-color: rgba(16,185,129,0.4); }
+.hm-host-card.write-enabled { border-color: rgba(16,185,129,0.6); background: rgba(16,185,129,0.04); }
+
+.hm-host-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(135deg, #5b4cc4, #7c6cf0);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 600; color: white;
+  flex-shrink: 0;
+}
+.hm-host-card.active-helper .hm-host-avatar {
+  background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.hm-host-info {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;
+}
+.hm-host-name {
+  font-size: 15px; font-weight: 600; color: #e8e9f0;
+  display: flex; align-items: center; gap: 8px;
+}
+.hm-host-meta {
+  font-size: 12px; color: #7c7f96;
+  display: flex; gap: 14px; flex-wrap: wrap;
+}
+.hm-host-meta span { display: flex; align-items: center; gap: 4px; }
+
+.hm-host-permissions {
+  display: flex; gap: 12px; flex-shrink: 0;
+}
+.hm-perm-toggle {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.hm-perm-label {
+  font-size: 10px; color: #7c7f96;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.hm-perm-switch {
+  position: relative; width: 44px; height: 24px;
+  background: #2a2d42; border-radius: 12px;
+  cursor: pointer; transition: background 0.2s;
+  border: none;
+}
+.hm-perm-switch.on { background: #10b981; }
+.hm-perm-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: white; transition: transform 0.2s;
+}
+.hm-perm-switch.on::after { transform: translateX(20px); }
+.hm-perm-switch:disabled { opacity: 0.5; cursor: wait; }
+
+.hm-host-status {
+  flex-shrink: 0; padding: 4px 10px;
+  border-radius: 10px; font-size: 11px; font-weight: 600;
+}
+.hm-host-status.inactive {
+  background: rgba(251,191,36,0.15); color: #fbbf24;
+}
+.hm-host-status.readonly {
+  background: rgba(96,165,250,0.15); color: #60a5fa;
+}
+.hm-host-status.full {
+  background: rgba(16,185,129,0.15); color: #10b981;
+}
+
+/* ========== TOAST ========== */
+.toast-notification {
+  position: fixed; bottom: 30px; right: 30px;
+  padding: 12px 18px; border-radius: 10px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-family: 'Poppins', sans-serif;
+  z-index: 99999; max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  animation: hmSlideIn 0.3s ease-out;
+}
+.toast-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+.toast-info { background: linear-gradient(135deg, #5b4cc4, #7c6cf0); color: white; }
+.toast-fade { opacity: 0; transition: opacity 0.4s; }
+@keyframes hmSlideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .page-content { padding: 16px; }
+  .hm-host-card {
+    flex-direction: column; align-items: stretch; gap: 14px;
+  }
+  .hm-host-info { width: 100%; }
+  .hm-host-permissions {
+    justify-content: space-around;
+    padding-top: 12px; border-top: 1px solid #2a2d42;
+  }
+  .hm-host-status { align-self: flex-start; }
+  .hm-stat { min-width: 140px; }
+  .hm-stat-value { font-size: 22px; }
+}

@@ -338,6 +338,14 @@
 
 .msg-text { white-space: pre-wrap; }
 
+/* Helper name shown above helper-sent messages */
+.msg-helper-name {
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 3px;
+  display: flex; align-items: center; gap: 3px;
+}
+
 .msg-reply {
   background: rgba(0,0,0,0.2);
   border-left: 3px solid rgba(255,255,255,0.15);

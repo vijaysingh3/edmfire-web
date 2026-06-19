@@ -256,7 +256,8 @@ function fetchLastMessagesForUsers(uids) {
               lastMessageCache[uid] = {
                 text: msg.text || (msg.imageUrl ? "📷 Image" : ""),
                 timestamp: msg.timestamp || 0,
-                sender: msg.sender || "user"
+                sender: msg.sender || "user",
+                helperName: msg.helperName || ""
               };
             });
           } else {
@@ -372,6 +373,8 @@ function renderUserList(data) {
       var lastMsgDisplay = lastMsgText;
       if (lastMsg && lastMsg.sender === "admin") {
         lastMsgDisplay = "You: " + lastMsgText;
+      } else if (lastMsg && lastMsg.sender === "helper" && lastMsg.helperName) {
+        lastMsgDisplay = lastMsg.helperName + ": " + lastMsgText;
       }
 
       // Build tooltip with email and inGameUID if available
@@ -710,6 +713,14 @@ function appendMessage(msgKey, msg) {
     var orig = allMessagesData[msg.replyTo];
     content += '<div class="msg-reply">' + escapeHtml((orig.text || "📷 Image").substring(0, 60)) + '</div>';
   }
+
+  // === HELPER NAME PIN ===
+  // Helper messages show the helper's UserName at the top of the bubble
+  // so admin can see which host replied to the user
+  if (msg.sender === "helper" && msg.helperName) {
+    content += '<div class="msg-helper-name">🛟 ' + escapeHtml(msg.helperName) + '</div>';
+  }
+
   if (msg.text) content += '<div class="msg-text">' + escapeHtml(msg.text) + "</div>";
   if (msg.imageUrl) content += '<img src="' + msg.imageUrl + '" alt="Image" loading="lazy" onclick="openFullImage(this.src)">';
 

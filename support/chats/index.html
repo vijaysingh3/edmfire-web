@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EDMFire Support - Helper Chats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="support-app">
+    <!-- Mobile Top Bar -->
+    <div class="mobile-topbar">
+      <button class="hamburger-btn" id="hamburgerBtn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="mobile-topbar-title" id="mobileHelperName">Helper</span>
+      <button class="mobile-topbar-logout" id="mobileLogoutBtn" title="Sign Out">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- Main Layout: Sidebar (user list) + Chat -->
+    <div class="support-layout">
+      <!-- Sidebar Overlay (mobile) -->
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+      <!-- Sidebar: User List -->
+      <div class="chat-sidebar" id="chatSidebar">
+        <div class="chat-sidebar-header">
+          <h2>Conversations</h2>
+          <button class="chat-sidebar-toggle" id="chatSidebarToggle" title="Close sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><path d="M18 17l-5-5 5-5"/></svg>
+          </button>
+        </div>
+
+        <!-- Helper identity card -->
+        <div class="helper-card" id="helperCard">
+          <div class="helper-avatar" id="sidebarUserAvatar">H</div>
+          <div class="helper-info">
+            <span class="helper-name" id="sidebarUserName">Helper</span>
+            <span class="helper-email" id="sidebarUserEmail">helper@edmfire.com</span>
+            <span class="helper-perm" id="helperPermBadge">Read</span>
+          </div>
+          <button class="helper-logout" id="sidebarLogoutBtn" title="Sign Out">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+
+        <div class="chat-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5a5d72" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search users...">
+        </div>
+        <div class="chat-user-list" id="userList">
+          <div class="empty-placeholder">Loading users...</div>
+        </div>
+      </div>
+
+      <!-- Chat Messages Area -->
+      <div class="chat-main" id="chatMain">
+        <div class="chat-main-header" id="chatMainHeader">
+          <button class="chat-back-btn" id="chatBackBtn" title="Back to conversations">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="chat-sidebar-open-btn" id="chatSidebarOpenBtn" title="Show conversations">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <div class="chat-main-info">
+            <span class="chat-main-name" id="chatHeaderName">Select a conversation</span>
+            <span class="chat-main-status" id="chatHeaderStatus">Choose a user to start helping</span>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="messagesContainer">
+          <div class="no-chat-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <h3>Welcome, Helper</h3>
+            <p>Select a user from the sidebar to start helping</p>
+          </div>
+        </div>
+
+        <!-- Reply Bar -->
+        <div class="reply-bar" id="replyBar" style="display:none;">
+          <div class="reply-content">
+            <span class="reply-name" id="replyName"></span>
+            <span class="reply-text" id="replyText"></span>
+          </div>
+          <button class="reply-close" id="replyClose">&times;</button>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-bar" id="chatInputBar" style="display:none;">
+          <input type="file" id="imageInput" accept="image/*" hidden>
+          <button class="icon-btn" id="imgBtn" title="Send Image">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </button>
+          <input type="text" id="msgInput" placeholder="Type a reply as helper..." autocomplete="off">
+          <button class="send-btn" id="sendBtn" title="Send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+
+        <!-- Read-only banner (helperWrite=no) -->
+        <div class="readonly-banner" id="readonlyBanner" style="display:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Read-only access — admin has not enabled message sending</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Preview Modal -->
+  <div class="image-preview-modal" id="imagePreviewModal" style="display:none;">
+    <div class="preview-overlay" id="previewOverlay"></div>
+    <div class="preview-content">
+      <img id="previewImage" src="" alt="Preview">
+      <div class="preview-actions">
+        <button class="preview-btn cancel-btn" id="cancelPreview">Cancel</button>
+        <button class="preview-btn send-preview-btn" id="sendPreview">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div class="context-menu" id="contextMenu" style="display:none;">
+    <div class="context-menu-item" id="ctxReply">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+      Reply
+    </div>
+    <div class="context-menu-item" id="ctxCopy">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" style="display:flex;">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="/api/firebase-config"></script>
+  <script src="../../firebase/auth.js"></script>
+  <script src="../../firebase/database.js"></script>
+  <script src="../../firebase/storage.js"></script>
+  <script src="../common/firebase-init.js"></script>
+  <script src="../common/host-auth.js"></script>
+  <script src="../common/nav.js"></script>
+  <script src="script.js"></script>
+
+</body>
+</html>
