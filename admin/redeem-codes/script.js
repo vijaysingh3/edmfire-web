@@ -32,12 +32,12 @@ function initRedeemCodesUI(adminUser) {
   var PAGE_SIZE = 25;
 
   // ============== Elements ==============
-  var rcValue = document.getElementById('rcValue');
-  var rcCount = document.getElementById('rcCount');
-  var rcPrefix = document.getElementById('rcPrefix');
   var rcExpiry = document.getElementById('rcExpiry');
-  var rcGenerateBtn = document.getElementById('rcGenerateBtn');
+  var rcEntryList = document.getElementById('rcEntryList');
+  var rcAddRowBtn = document.getElementById('rcAddRowBtn');
+  var rcSaveBtn = document.getElementById('rcSaveBtn');
   var rcClearBtn = document.getElementById('rcClearBtn');
+  var rcEntrySummary = document.getElementById('rcEntrySummary');
   var rcResultMsg = document.getElementById('rcResultMsg');
 
   var rcTotalCodes = document.getElementById('rcTotalCodes');
@@ -89,129 +89,233 @@ function initRedeemCodesUI(adminUser) {
     return str.length > n ? str.substring(0, n) + '…' : str;
   }
 
-  // ============== Code Generation ==============
-  function generateCodeString(prefix) {
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no confusing chars (0/O, 1/I)
-    var random = '';
-    for (var i = 0; i < 6; i++) {
-      random += chars.charAt(Math.floor(Math.random() * chars.length));
+  // ============== Manual Code Entry System ==============
+  // Each row has: code input + value dropdown + delete button
+  // "+ Add Another Code" adds a new empty row
+  // "Save All Codes" batch-writes all valid rows to Firestore
+
+  var entryRows = []; // array of { code: '', value: 10 } — current state of entry list
+
+  function renderEntryList() {
+    rcEntryList.innerHTML = '';
+
+    if (entryRows.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'rc-entry-empty';
+      empty.textContent = 'No codes added yet. Click "Add Another Code" to start entering redeem codes.';
+      rcEntryList.appendChild(empty);
+      updateEntrySummary();
+      return;
     }
-    return prefix + '-' + random;
+
+    for (var i = 0; i < entryRows.length; i++) {
+      (function(idx) {
+        var row = document.createElement('div');
+        row.className = 'rc-entry-row';
+
+        // Row number
+        var num = document.createElement('div');
+        num.className = 'rc-row-num';
+        num.textContent = '#' + (idx + 1);
+
+        // Code input
+        var codeInput = document.createElement('input');
+        codeInput.type = 'text';
+        codeInput.className = 'rc-row-code';
+        codeInput.placeholder = 'Paste Google Play redeem code here...';
+        codeInput.value = entryRows[idx].code || '';
+        codeInput.maxLength = 100;
+        codeInput.addEventListener('input', function() {
+          entryRows[idx].code = codeInput.value.trim();
+          updateEntrySummary();
+        });
+
+        // Value dropdown
+        var valueSelect = document.createElement('select');
+        valueSelect.className = 'rc-row-value';
+        [10, 20, 30, 40, 50].forEach(function(v) {
+          var opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = '₹' + v;
+          valueSelect.appendChild(opt);
+        });
+        valueSelect.value = String(entryRows[idx].value || 10);
+        valueSelect.addEventListener('change', function() {
+          entryRows[idx].value = parseInt(valueSelect.value, 10);
+          updateEntrySummary();
+        });
+
+        // Delete button
+        var delBtn = document.createElement('button');
+        delBtn.className = 'rc-row-delete';
+        delBtn.title = 'Remove this code';
+        delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        delBtn.addEventListener('click', function() {
+          entryRows.splice(idx, 1);
+          renderEntryList();
+        });
+
+        row.appendChild(num);
+        row.appendChild(codeInput);
+        row.appendChild(valueSelect);
+        row.appendChild(delBtn);
+
+        rcEntryList.appendChild(row);
+
+        // Auto-focus the code input on freshly added rows
+        if (entryRows[idx]._isNew) {
+          entryRows[idx]._isNew = false;
+          setTimeout(function() { codeInput.focus(); }, 50);
+        }
+      })(i);
+    }
+
+    updateEntrySummary();
   }
 
-  function generateUniqueCodes(prefix, count, existingSet) {
-    var codes = [];
-    var attempts = 0;
-    var maxAttempts = count * 10;
-    while (codes.length < count && attempts < maxAttempts) {
-      var c = generateCodeString(prefix);
-      if (!existingSet.has(c)) {
-        existingSet.add(c);
-        codes.push(c);
+  function updateEntrySummary() {
+    var valid = entryRows.filter(function(r) {
+      return r.code && r.code.trim().length > 0;
+    });
+    var count = valid.length;
+    rcEntrySummary.textContent = count + ' code' + (count === 1 ? '' : 's') + ' ready to save';
+    if (count > 0) {
+      rcEntrySummary.classList.add('has-items');
+      rcSaveBtn.disabled = false;
+    } else {
+      rcEntrySummary.classList.remove('has-items');
+      rcSaveBtn.disabled = true;
+    }
+  }
+
+  function addNewRow() {
+    // Cap at 200 rows to prevent UI slowdown
+    if (entryRows.length >= 200) {
+      showMsg('Maximum 200 codes per batch. Save current batch first.', 'error');
+      return;
+    }
+    entryRows.push({ code: '', value: 10, _isNew: true });
+    renderEntryList();
+    // Scroll the new row into view
+    setTimeout(function() {
+      rcEntryList.scrollTop = rcEntryList.scrollHeight;
+    }, 50);
+  }
+
+  rcAddRowBtn.addEventListener('click', addNewRow);
+
+  // ============== Save All Codes ==============
+  rcSaveBtn.addEventListener('click', async function() {
+    // 1. Collect and validate
+    var validRows = entryRows.filter(function(r) {
+      return r.code && r.code.trim().length > 0;
+    });
+
+    if (validRows.length === 0) {
+      showMsg('Please enter at least one redeem code before saving.', 'error');
+      return;
+    }
+
+    // Normalize codes (uppercase, trim) and check for duplicates within this batch
+    var seen = {};
+    var duplicates = [];
+    var cleanRows = [];
+    for (var i = 0; i < validRows.length; i++) {
+      var code = validRows[i].code.trim().toUpperCase();
+      if (seen[code]) {
+        duplicates.push(code);
+        continue;
       }
-      attempts++;
+      seen[code] = true;
+      cleanRows.push({ code: code, value: validRows[i].value });
     }
-    return codes;
-  }
 
-  // ============== Generate Codes ==============
-  rcGenerateBtn.addEventListener('click', async function() {
-    var value = parseInt(rcValue.value, 10);
-    var count = parseInt(rcCount.value, 10);
-    var prefix = rcPrefix.value.trim().toUpperCase() || 'EDM-REDEEM';
+    if (duplicates.length > 0) {
+      showMsg('Duplicate codes in this batch removed: ' + duplicates.length + '. Saving ' + cleanRows.length + ' unique codes.', 'info');
+    }
+
+    if (cleanRows.length === 0) {
+      showMsg('All entered codes are duplicates. Please enter unique codes.', 'error');
+      return;
+    }
+
+    // 2. Get expiry (applies to all codes in this batch)
     var expiryRaw = rcExpiry.value;
-
-    if (!value || value < 1) {
-      showMsg('Please select a valid code value.', 'error');
-      return;
-    }
-    if (!count || count < 1) {
-      showMsg('Please enter a valid number of codes.', 'error');
-      return;
-    }
-    if (count > 500) {
-      showMsg('Maximum 500 codes per batch.', 'error');
-      return;
-    }
-    if (!/^[A-Z0-9-]+$/.test(prefix)) {
-      showMsg('Prefix can only contain letters, numbers, and hyphens.', 'error');
-      return;
-    }
-
     var expiryDate = null;
     if (expiryRaw) {
       expiryDate = firebase.firestore.Timestamp.fromDate(new Date(expiryRaw + 'T23:59:59'));
     }
 
-    rcGenerateBtn.disabled = true;
-    rcGenerateBtn.querySelector('span').textContent = 'Generating...';
-    showMsg('Generating ' + count + ' codes of ₹' + value + '...', 'info');
+    // 3. Save to Firestore
+    rcSaveBtn.disabled = true;
+    rcSaveBtn.querySelector('span').textContent = 'Saving...';
+    showMsg('Saving ' + cleanRows.length + ' codes to Firestore...', 'info');
 
     try {
-      // 1. Fetch existing codes to avoid duplicates (limit scope: only same-prefix)
-      // For performance, we just generate and check uniqueness against a small set pulled
-      // from current allCodes cache + a quick existence check via Firestore
-      var existingSet = new Set();
-      for (var i = 0; i < allCodes.length; i++) {
-        existingSet.add(allCodes[i].code);
-      }
-
-      var codes = generateUniqueCodes(prefix, count, existingSet);
-      if (codes.length < count) {
-        showMsg('Could not generate ' + count + ' unique codes. Generated ' + codes.length + '. Please retry.', 'error');
-        rcGenerateBtn.disabled = false;
-        rcGenerateBtn.querySelector('span').textContent = 'Generate Codes';
-        return;
-      }
-
-      // 2. Batch write to Firestore
       var batchId = 'BATCH_' + Date.now();
       var createdAt = firebase.firestore.FieldValue.serverTimestamp();
       var batch = db.batch();
-      var codeDocs = [];
+      var MAX_BATCH = 450; // Firestore batch limit is 500, keep buffer
 
-      for (var j = 0; j < codes.length; j++) {
-        var docRef = CODES_REF.doc(); // auto ID
-        var data = {
-          code: codes[j],
-          value: value,
-          isUsed: false,
-          purchasedBy: '',
-          purchasedAt: null,
-          createdAt: createdAt,
-          createdBy: adminUid,
-          batchId: batchId,
-          expiryDate: expiryDate
-        };
-        batch.set(docRef, data);
-        codeDocs.push({ id: docRef.id, code: codes[j], value: value, isUsed: false, purchasedBy: '', purchasedAt: null, createdAt: null, createdBy: adminUid, batchId: batchId, expiryDate: expiryDate });
+      // If more than MAX_BATCH, write multiple batches sequentially
+      var batchesWritten = 0;
+      while (batchesWritten < cleanRows.length) {
+        var chunkSize = Math.min(MAX_BATCH, cleanRows.length - batchesWritten);
+        var chunkBatch = db.batch();
+
+        for (var j = 0; j < chunkSize; j++) {
+          var item = cleanRows[batchesWritten + j];
+          var docRef = CODES_REF.doc();
+          var data = {
+            code: item.code,
+            value: item.value,
+            isUsed: false,
+            purchasedBy: '',
+            purchasedAt: null,
+            createdAt: createdAt,
+            createdBy: adminUid,
+            batchId: batchId,
+            expiryDate: expiryDate
+          };
+          chunkBatch.set(docRef, data);
+        }
+
+        await chunkBatch.commit();
+        batchesWritten += chunkSize;
       }
 
-      await batch.commit();
+      showMsg('✅ ' + cleanRows.length + ' codes saved successfully! Batch: ' + batchId, 'success');
 
-      showMsg('✅ ' + codes.length + ' codes of ₹' + value + ' generated successfully! Batch: ' + batchId, 'success');
-
-      // Reset count field
-      rcCount.value = 10;
+      // Clear entry list + expiry
+      entryRows = [];
+      rcExpiry.value = '';
+      renderEntryList();
 
       // Reload data
       loadAllCodes();
       loadStockSummary();
     } catch (err) {
-      console.error('[RedeemCodes] Generate error:', err);
-      showMsg('Failed to generate codes: ' + err.message, 'error');
+      console.error('[RedeemCodes] Save error:', err);
+      showMsg('Failed to save codes: ' + err.message, 'error');
     } finally {
-      rcGenerateBtn.disabled = false;
-      rcGenerateBtn.querySelector('span').textContent = 'Generate Codes';
+      rcSaveBtn.disabled = false;
+      rcSaveBtn.querySelector('span').textContent = 'Save All Codes';
+      updateEntrySummary();
     }
   });
 
   rcClearBtn.addEventListener('click', function() {
-    rcValue.value = '10';
-    rcCount.value = '10';
-    rcPrefix.value = 'EDM-REDEEM';
-    rcExpiry.value = '';
-    rcResultMsg.className = 'rc-result-msg';
+    if (entryRows.length === 0) {
+      rcExpiry.value = '';
+      rcResultMsg.className = 'rc-result-msg';
+      return;
+    }
+    if (confirm('Clear all entered codes? This cannot be undone.')) {
+      entryRows = [];
+      rcExpiry.value = '';
+      rcResultMsg.className = 'rc-result-msg';
+      renderEntryList();
+    }
   });
 
   // ============== Load Stock Summary ==============
@@ -585,6 +689,7 @@ function initRedeemCodesUI(adminUser) {
   document.head.appendChild(spinStyle);
 
   // ============== Initial Load ==============
+  renderEntryList();          // render empty entry list with placeholder
   loadStockSummary();
   loadAllCodes();
 }
