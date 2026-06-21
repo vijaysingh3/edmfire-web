@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>EDMFire Admin - User Detail</title>
+  <title>EDMFire Admin - Redeem Codes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../common/layout.css">
@@ -16,7 +16,7 @@
       <button class="hamburger-btn" id="hamburgerBtn">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <span class="mobile-topbar-title">User Detail</span>
+      <span class="mobile-topbar-title">Redeem Codes</span>
       <button class="mobile-topbar-logout" id="mobileLogoutBtn" title="Sign Out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -45,6 +45,7 @@
         <a class="nav-item" href="/admin/chats/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Support Chats</span>
+          <div class="nav-badge" id="navChatBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/world-chat-rooms/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -57,6 +58,7 @@
         <a class="nav-item" href="/admin/withdrawals/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           <span>Withdrawals</span>
+          <div class="nav-badge" id="navWithdrawalBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/host-withdrawals/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -70,9 +72,9 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><polyline points="17 11 19 13 23 9"/></svg>
           <span>Helper Manager</span>
         </a>
-        <a class="nav-item active" href="/admin/users/">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span>Users Management</span>
+        <a class="nav-item" href="/admin/players/">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Players</span>
         </a>
         <a class="nav-item" href="/admin/notifications/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -82,7 +84,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
           <span>Broadcast</span>
         </a>
-        <a class="nav-item" href="/admin/redeem-codes/">
+        <a class="nav-item active" href="/admin/redeem-codes/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
           <span>Redeem Codes</span>
         </a>
@@ -90,7 +92,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Settings</span>
         </a>
-              <a class="nav-item nav-external" href="https://host.edmfire.in/" target="_blank" rel="noopener noreferrer">
+        <a class="nav-item nav-external" href="https://host.edmfire.in/" target="_blank" rel="noopener noreferrer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span>Host Panel</span>
           <svg class="nav-external-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -114,60 +116,169 @@
     <!-- Main Content -->
     <div class="main-content">
       <div class="page-content">
-        <!-- Back + Header -->
-        <div class="detail-header">
-          <a class="detail-back-btn" href="/admin/users/">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            <span>Back</span>
-          </a>
-          <h1 class="page-title">User Detail</h1>
+        <div class="page-header">
+          <h1 class="page-title">🎁 Redeem Code Management</h1>
+          <p class="page-subtitle">Generate, monitor, and export redeem codes for players</p>
         </div>
 
-        <!-- User UID Banner -->
-        <div class="uid-banner" id="uidBanner">
-          <span class="uid-banner-label">User UID</span>
-          <span class="uid-banner-value" id="uidBannerValue">Loading...</span>
-        </div>
-
-        <!-- Tabs -->
-        <div class="detail-tabs">
-          <button class="detail-tab active" id="tabFields" onclick="switchTab('fields')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Fields
-          </button>
-          <button class="detail-tab" id="tabSubcollections" onclick="switchTab('subcollections')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            SubCollections
-          </button>
-        </div>
-
-        <!-- Fields Tab Content -->
-        <div class="tab-content" id="fieldsContent">
-          <div class="detail-loading">
-            <div class="detail-loading-spinner"></div>
-            <span>Loading user data...</span>
+        <!-- Stats Bar -->
+        <div class="rc-stats-bar">
+          <div class="rc-stat">
+            <span class="rc-stat-value" id="rcTotalCodes">0</span>
+            <span class="rc-stat-label">Total Codes</span>
+          </div>
+          <div class="rc-stat">
+            <span class="rc-stat-value rc-stat-available" id="rcAvailable">0</span>
+            <span class="rc-stat-label">Available</span>
+          </div>
+          <div class="rc-stat">
+            <span class="rc-stat-value rc-stat-used" id="rcUsed">0</span>
+            <span class="rc-stat-label">Used</span>
+          </div>
+          <div class="rc-stat">
+            <span class="rc-stat-value rc-stat-value-amount" id="rcTotalValue">₹0</span>
+            <span class="rc-stat-label">Total Value</span>
           </div>
         </div>
 
-        <!-- SubCollections Tab Content -->
-        <div class="tab-content" id="subcollectionsContent" style="display:none;">
-          <div class="subcollection-list" id="subcollectionList"></div>
+        <!-- Generate Codes Card -->
+        <div class="rc-card">
+          <div class="rc-card-header">
+            <h2 class="rc-card-title">⚡ Generate New Codes</h2>
+            <p class="rc-card-subtitle">Create a batch of unique redeem codes</p>
+          </div>
+
+          <div class="rc-form-grid">
+            <div class="rc-form-row">
+              <label for="rcValue">Code Value</label>
+              <select id="rcValue">
+                <option value="10">₹10</option>
+                <option value="20">₹20</option>
+                <option value="30">₹30</option>
+                <option value="40">₹40</option>
+                <option value="50">₹50</option>
+              </select>
+            </div>
+
+            <div class="rc-form-row">
+              <label for="rcCount">Number of Codes</label>
+              <input type="number" id="rcCount" min="1" max="500" value="10" />
+              <small class="rc-form-hint">Max 500 codes per batch</small>
+            </div>
+
+            <div class="rc-form-row">
+              <label for="rcPrefix">Code Prefix</label>
+              <input type="text" id="rcPrefix" value="EDM-REDEEM" maxlength="20" />
+              <small class="rc-form-hint">Format: PREFIX-XXXXXX</small>
+            </div>
+
+            <div class="rc-form-row">
+              <label for="rcExpiry">Expiry Date (Optional)</label>
+              <input type="date" id="rcExpiry" />
+              <small class="rc-form-hint">Leave blank for no expiry</small>
+            </div>
+          </div>
+
+          <div class="rc-form-actions">
+            <button id="rcGenerateBtn" class="rc-btn-primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <span>Generate Codes</span>
+            </button>
+            <button id="rcClearBtn" class="rc-btn-secondary">Reset Form</button>
+          </div>
+
+          <div class="rc-result-msg" id="rcResultMsg"></div>
         </div>
 
-        <!-- Edit / Save Buttons -->
-        <div class="detail-actions" id="detailActions">
-          <button class="detail-btn detail-btn-edit" id="btnEdit" onclick="toggleEditMode()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Edit
-          </button>
-          <button class="detail-btn detail-btn-save" id="btnSave" onclick="saveChanges()" style="display:none;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Save Changes
-          </button>
-          <button class="detail-btn detail-btn-cancel" id="btnCancel" onclick="cancelEdit()" style="display:none;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Cancel
-          </button>
+        <!-- Stock Summary Card -->
+        <div class="rc-card">
+          <div class="rc-card-header">
+            <h2 class="rc-card-title">📊 Stock Summary by Value</h2>
+            <p class="rc-card-subtitle">Live distribution of codes across denominations</p>
+          </div>
+
+          <div class="rc-table-wrap">
+            <table class="rc-table">
+              <thead>
+                <tr>
+                  <th>Value</th>
+                  <th>Total</th>
+                  <th>Available</th>
+                  <th>Used</th>
+                  <th>% Used</th>
+                  <th>Progress</th>
+                </tr>
+              </thead>
+              <tbody id="rcStockBody">
+                <tr><td colspan="6" class="rc-empty">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Codes Card -->
+        <div class="rc-card">
+          <div class="rc-card-header">
+            <h2 class="rc-card-title">📋 All Codes</h2>
+            <p class="page-subtitle">View, filter, and export redeem codes</p>
+          </div>
+
+          <!-- Filters -->
+          <div class="rc-filters">
+            <div class="rc-filter-tabs">
+              <button class="rc-filter-tab active" data-filter="all">All</button>
+              <button class="rc-filter-tab" data-filter="available">Available</button>
+              <button class="rc-filter-tab" data-filter="used">Used</button>
+            </div>
+
+            <div class="rc-filter-controls">
+              <select id="rcFilterValue" class="rc-select">
+                <option value="">All Values</option>
+                <option value="10">₹10</option>
+                <option value="20">₹20</option>
+                <option value="30">₹30</option>
+                <option value="40">₹40</option>
+                <option value="50">₹50</option>
+              </select>
+
+              <div class="rc-search-bar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5a5d72" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="rcSearchInput" placeholder="Search code or user ID..." />
+              </div>
+
+              <button id="rcExportBtn" class="rc-btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+
+              <button id="rcRefreshBtn" class="rc-btn-secondary" title="Refresh">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="rc-results-count" id="rcResultsCount">Loading...</div>
+
+          <div class="rc-table-wrap">
+            <table class="rc-table rc-table-codes">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Value</th>
+                  <th>Status</th>
+                  <th>Purchased By</th>
+                  <th>Created At</th>
+                  <th>Purchased At</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="rcCodesBody">
+                <tr><td colspan="7" class="rc-empty">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="rc-pagination" id="rcPagination"></div>
         </div>
       </div>
     </div>
@@ -178,16 +289,30 @@
     <div class="loading-spinner"></div>
   </div>
 
+  <!-- Confirm Delete Modal -->
+  <div class="rc-modal-overlay" id="rcDeleteModal">
+    <div class="rc-modal">
+      <h3>Delete Code</h3>
+      <p>Are you sure you want to delete this code?</p>
+      <code id="rcDeleteCodeDisplay"></code>
+      <div class="rc-modal-actions">
+        <button class="rc-btn-secondary" id="rcDeleteCancel">Cancel</button>
+        <button class="rc-btn-danger" id="rcDeleteConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <script src="/api/firebase-config"></script>
   <script src="../../firebase/auth.js"></script>
-  <script src="../../firebase/database.js"></script>
   <script src="../common/nav.js"></script>
   <script src="script.js"></script>
+
 </body>
 </html>
