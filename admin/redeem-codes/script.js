@@ -1,8 +1,18 @@
 /* ============================================================
  * EDMFire Admin — Redeem Code Management
- * Firestore Path: RedeemCodes/{codeId}
- * Fields: code, value, isUsed, purchasedBy, purchasedAt,
- *         createdAt, createdBy, batchId, expiryDate
+ *
+ * 🔒 SECURE PATH STRUCTURE:
+ *   RedeemCodes/                              (collection)
+ *   └── InStock/                              (anchor doc)
+ *       ├── SecuredCode/{autoDocId}           (subcollection — PRIVATE, admin-only)
+ *       │     Fields: code, value, isUsed, purchasedBy, purchasedAt,
+ *       │             createdAt, createdBy, batchId, expiryDate
+ *       │
+ *       └── AvailableCount/{paisaAsString}   (subcollection — PUBLIC read)
+ *             Fields: value (paisa int), quantity (available count)
+ *
+ * ATOMICITY: All add/delete operations write to BOTH subcollections
+ * in a single Firestore batch — counts can never drift from actual code docs.
  *
  * 💰 PAYMENT RULE (Bank Method — follows app-wide rule):
  *   • Database Store : PAISA  (Integer)        e.g. 1000
@@ -29,9 +39,14 @@ function initRedeemCodesUI(adminUser) {
   // ============== State ==============
   var adminUid = adminUser ? adminUser.uid : 'unknown-admin';
   var db = firebase.firestore();
-  var CODES_REF = db.collection('RedeemCodes');
 
-  var allCodes = [];          // full cache (filtered view)
+  // 🔒 Secure path: RedeemCodes/InStock/SecuredCode/{autoId}  (PRIVATE — actual codes)
+  //               RedeemCodes/InStock/AvailableCount/{paisa} (PUBLIC  — counts per denomination)
+  var INSTOCK_REF     = db.collection('RedeemCodes').doc('InStock');
+  var SECURED_REF     = INSTOCK_REF.collection('SecuredCode');
+  var AVAILABLE_REF   = INSTOCK_REF.collection('AvailableCount');
+
+  var allCodes = [];          // full cache (filtered view) — sourced from SecuredCode
   var currentFilter = 'all';  // all | available | used
   var currentValueFilter = ''; // '' | '1000' | '2000' ... (paisa as string)
   var currentSearch = '';
@@ -339,16 +354,34 @@ function initRedeemCodesUI(adminUser) {
     try {
       var batchId = 'BATCH_' + Date.now();
       var createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      var MAX_BATCH = 450; // Firestore batch limit is 500, keep buffer
+      var MAX_BATCH = 450; // Firestore batch limit is 500, keep buffer for code docs + count updates
 
+      // Group cleanRows by value (paisa) so we can issue ONE increment per denomination
+      // instead of N increments (which would exceed batch size and be wasteful).
+      var countsByPaisa = {}; // { 1000: 3, 2000: 1, ... }
+      for (var k = 0; k < cleanRows.length; k++) {
+        var p = cleanRows[k].valuePaisa;
+        countsByPaisa[p] = (countsByPaisa[p] || 0) + 1;
+      }
+      var denomKeys = Object.keys(countsByPaisa); // number of distinct denominations
+
+      // Each Firestore batch can hold up to 500 ops. We need:
+      //   (cleanRows.length code-doc SETs) + (denomKeys count-doc SETs)
+      // per chunk. We chunk on code docs only and apply ALL denom increments in the
+      // FIRST chunk (since denomKeys << cleanRows.length in practice).
       var batchesWritten = 0;
+      var firstChunk = true;
       while (batchesWritten < cleanRows.length) {
         var chunkSize = Math.min(MAX_BATCH, cleanRows.length - batchesWritten);
+        // Reserve space for denom increments only in the first chunk
+        if (firstChunk) {
+          chunkSize = Math.min(chunkSize, MAX_BATCH - denomKeys.length);
+        }
         var chunkBatch = db.batch();
 
         for (var j = 0; j < chunkSize; j++) {
           var item = cleanRows[batchesWritten + j];
-          var docRef = CODES_REF.doc();
+          var docRef = SECURED_REF.doc(); // 🔒 PRIVATE subcollection
           var data = {
             code: item.code,
             value: item.valuePaisa, // 🏦 PAISA (integer)
@@ -363,12 +396,26 @@ function initRedeemCodesUI(adminUser) {
           chunkBatch.set(docRef, data);
         }
 
+        // In the first chunk, also bump AvailableCount for each denomination
+        if (firstChunk) {
+          for (var d = 0; d < denomKeys.length; d++) {
+            var paisaKey = denomKeys[d];
+            var countRef = AVAILABLE_REF.doc(String(paisaKey)); // 🌐 PUBLIC subcollection
+            chunkBatch.set(countRef, {
+              value: parseInt(paisaKey, 10),
+              quantity: firebase.firestore.FieldValue.increment(countsByPaisa[paisaKey])
+            }, { merge: true });
+          }
+          firstChunk = false;
+        }
+
         await chunkBatch.commit();
         batchesWritten += chunkSize;
       }
 
       console.log('[RedeemCodes] Save success — wrote', cleanRows.length,
-                  'codes. Batch:', batchId);
+                  'codes + updated', denomKeys.length,
+                  'denomination counters. Batch:', batchId);
       showMsg('✅ ' + cleanRows.length + ' codes saved successfully! Batch: ' + batchId, 'success');
 
       // Clear entry list + expiry
@@ -406,62 +453,81 @@ function initRedeemCodesUI(adminUser) {
   });
 
   // ============== Load Stock Summary ==============
+  // Two queries run in parallel:
+  //   1. AvailableCount (PUBLIC, fast) → drives the stock table + available counts
+  //   2. SecuredCode where isUsed == true (PRIVATE) → drives the "Used" stat + used counts
+  // Total = Available + Used (no need to scan all SecuredCode docs)
   async function loadStockSummary() {
     try {
       rcStockBody.innerHTML = '<tr><td colspan="6" class="rc-empty">Loading...</td></tr>';
-      var snapshot = await CODES_REF.get();
 
-      // Group by paisa value (as stored in DB)
-      var stats = {}; // { paisa: { total, available, used } }
+      // Parallel queries
+      var availableSnap = await AVAILABLE_REF.get();
+      var usedSnap = await SECURED_REF.where('isUsed', '==', true).limit(500).get();
 
-      var totalAll = 0, availableAll = 0, usedAll = 0, totalValuePaisa = 0;
-
-      snapshot.forEach(function(doc) {
+      // Tally available counts per denomination (from AvailableCount subcollection)
+      var availableByPaisa = {};     // { 1000: 3, 2000: 1, ... }
+      var availableAll = 0;
+      var availableValuePaisa = 0;
+      availableSnap.forEach(function(doc) {
         var d = doc.data();
-        var p = parseInt(d.value, 10) || 0; // 🏦 read paisa from db
-        if (!stats[p]) stats[p] = { total: 0, available: 0, used: 0 };
-        stats[p].total++;
-        if (d.isUsed) {
-          stats[p].used++;
-          usedAll++;
-        } else {
-          stats[p].available++;
-          availableAll++;
-        }
-        totalAll++;
-        totalValuePaisa += p;
+        var p = parseInt(d.value, 10) || 0;
+        var q = parseInt(d.quantity, 10) || 0;
+        if (q <= 0) return; // skip zero-quantity denominations
+        availableByPaisa[p] = (availableByPaisa[p] || 0) + q;
+        availableAll += q;
+        availableValuePaisa += (p * q);
       });
+
+      // Tally used counts per denomination (from SecuredCode where isUsed==true)
+      var usedByPaisa = {};
+      var usedAll = 0;
+      var usedValuePaisa = 0;
+      usedSnap.forEach(function(doc) {
+        var d = doc.data();
+        var p = parseInt(d.value, 10) || 0;
+        usedByPaisa[p] = (usedByPaisa[p] || 0) + 1;
+        usedAll++;
+        usedValuePaisa += p;
+      });
+
+      // Compute totals
+      var totalAll = availableAll + usedAll;
+      var totalValuePaisa = availableValuePaisa + usedValuePaisa;
 
       // Update top stat cards
       rcTotalCodes.textContent = totalAll;
       rcAvailable.textContent = availableAll;
       rcUsed.textContent = usedAll;
-      rcTotalValue.textContent = formatRupeesWithSymbol(totalValuePaisa); // 🏦 show rupees
+      rcTotalValue.textContent = formatRupeesWithSymbol(totalValuePaisa);
 
-      // Render stock table (sorted by paisa ascending)
+      // Render stock table — union of all denominations seen in either collection
+      var allPaisaSet = {};
+      Object.keys(availableByPaisa).forEach(function(k) { allPaisaSet[k] = true; });
+      Object.keys(usedByPaisa).forEach(function(k) { allPaisaSet[k] = true; });
+      var sortedPaisa = Object.keys(allPaisaSet).map(Number).sort(function(a, b) { return a - b; });
+
       rcStockBody.innerHTML = '';
-      var hasRows = false;
-      var sortedPaisa = Object.keys(stats).map(Number).sort(function(a, b) { return a - b; });
+      if (sortedPaisa.length === 0) {
+        rcStockBody.innerHTML = '<tr><td colspan="6" class="rc-empty">No codes yet. Add some above.</td></tr>';
+        return;
+      }
 
       for (var k = 0; k < sortedPaisa.length; k++) {
         var paisa = sortedPaisa[k];
-        var s = stats[paisa];
-        if (s.total === 0) continue;
-        hasRows = true;
-        var pctUsed = s.total > 0 ? Math.round((s.used / s.total) * 100) : 0;
+        var avail = availableByPaisa[paisa] || 0;
+        var used = usedByPaisa[paisa] || 0;
+        var total = avail + used;
+        var pctUsed = total > 0 ? Math.round((used / total) * 100) : 0;
         var tr = document.createElement('tr');
         tr.innerHTML =
           '<td class="rc-value-cell">' + formatRupeesWithSymbol(paisa) + '</td>' +
-          '<td>' + s.total + '</td>' +
-          '<td style="color:#22c55e;font-weight:600;">' + s.available + '</td>' +
-          '<td style="color:#ef4444;font-weight:600;">' + s.used + '</td>' +
+          '<td>' + total + '</td>' +
+          '<td style="color:#22c55e;font-weight:600;">' + avail + '</td>' +
+          '<td style="color:#ef4444;font-weight:600;">' + used + '</td>' +
           '<td>' + pctUsed + '%</td>' +
           '<td><div class="rc-progress-bar"><div class="rc-progress-fill" style="width:' + pctUsed + '%"></div></div></td>';
         rcStockBody.appendChild(tr);
-      }
-
-      if (!hasRows) {
-        rcStockBody.innerHTML = '<tr><td colspan="6" class="rc-empty">No codes yet. Add some above.</td></tr>';
       }
     } catch (err) {
       console.error('[RedeemCodes] Stock summary error:', err);
@@ -475,7 +541,7 @@ function initRedeemCodesUI(adminUser) {
       rcResultsCount.textContent = 'Loading...';
       rcCodesBody.innerHTML = '<tr><td colspan="7" class="rc-empty">Loading...</td></tr>';
 
-      var snapshot = await CODES_REF.orderBy('createdAt', 'desc').limit(500).get();
+      var snapshot = await SECURED_REF.orderBy('createdAt', 'desc').limit(500).get();
       allCodes = [];
       snapshot.forEach(function(doc) {
         var d = doc.data();
@@ -671,7 +737,42 @@ function initRedeemCodesUI(adminUser) {
     rcDeleteConfirm.disabled = true;
     rcDeleteConfirm.textContent = 'Deleting...';
     try {
-      await CODES_REF.doc(pendingDeleteId).delete();
+      // 1. Read the SecuredCode doc first to know its value + isUsed status.
+      //    We need `value` to know which AvailableCount doc to decrement,
+      //    and `isUsed` to decide WHETHER to decrement (used codes were
+      //    already removed from AvailableCount when redeemed by a player).
+      var docSnap = await SECURED_REF.doc(pendingDeleteId).get();
+      if (!docSnap.exists) {
+        // Already gone — just close modal and refresh
+        showMsg('Code already removed.', 'info');
+        rcDeleteModal.classList.remove('active');
+        pendingDeleteId = null;
+        pendingDeleteCode = null;
+        loadAllCodes();
+        loadStockSummary();
+        return;
+      }
+      var docData = docSnap.data();
+      var paisa = parseInt(docData.value, 10) || 0;
+      var wasUsed = !!docData.isUsed;
+
+      // 2. Atomic batch:
+      //    - DELETE the SecuredCode doc
+      //    - IF the code was NOT used: decrement AvailableCount/{paisa} by 1
+      //      (if it WAS used, AvailableCount was already decremented at redeem time)
+      var batch = db.batch();
+      batch.delete(SECURED_REF.doc(pendingDeleteId));
+      if (!wasUsed && paisa > 0) {
+        batch.set(AVAILABLE_REF.doc(String(paisa)), {
+          value: paisa,
+          quantity: firebase.firestore.FieldValue.increment(-1)
+        }, { merge: true });
+      }
+      await batch.commit();
+
+      console.log('[RedeemCodes] Delete success — code:', pendingDeleteCode,
+                  '| paisa:', paisa, '| wasUsed:', wasUsed,
+                  '| AvailableCount', wasUsed ? '(unchanged — was already used)' : '(-1)');
       showMsg('Code ' + pendingDeleteCode + ' deleted.', 'success');
       rcDeleteModal.classList.remove('active');
       pendingDeleteId = null;
@@ -679,6 +780,7 @@ function initRedeemCodesUI(adminUser) {
       loadAllCodes();
       loadStockSummary();
     } catch (err) {
+      console.error('[RedeemCodes] Delete error:', err);
       showMsg('Delete failed: ' + err.message, 'error');
     } finally {
       rcDeleteConfirm.disabled = false;
