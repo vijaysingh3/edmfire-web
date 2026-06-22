@@ -184,19 +184,36 @@
 }
 
 .rc-row-value {
-  padding: 9px 8px;
+  width: 100%;
+  padding: 9px 10px;
   font-size: 13px;
   font-family: 'Poppins', sans-serif;
-  color: #e8e9f0;
+  font-weight: 600;
+  color: #fbbf24;
   background: #1a1b29;
   border: 1.5px solid #2a2c3e;
   border-radius: 6px;
-  cursor: pointer;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;       /* Firefox: hide spinner */
+}
+
+.rc-row-value::-webkit-outer-spin-button,
+.rc-row-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;                          /* Chrome/Safari/Edge: hide spinner */
 }
 
 .rc-row-value:focus {
   outline: none;
   border-color: #7c6cf0;
+  box-shadow: 0 0 0 3px rgba(124, 108, 240, 0.15);
+}
+
+.rc-row-value::placeholder {
+  color: #6b6d85;
+  font-weight: 500;
+  text-align: left;
 }
 
 .rc-row-delete {
@@ -769,7 +786,7 @@
     padding: 8px 10px;
   }
   .rc-row-code { font-size: 12px; }
-  .rc-row-value { font-size: 12px; padding: 8px 6px; }
+  .rc-row-value { font-size: 12px; padding: 8px 6px; text-align: right; }
   .rc-entry-actions {
     flex-direction: column;
     align-items: stretch;

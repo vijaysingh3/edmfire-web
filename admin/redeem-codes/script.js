@@ -3,6 +3,13 @@
  * Firestore Path: RedeemCodes/{codeId}
  * Fields: code, value, isUsed, purchasedBy, purchasedAt,
  *         createdAt, createdBy, batchId, expiryDate
+ *
+ * 💰 PAYMENT RULE (Bank Method — follows app-wide rule):
+ *   • Database Store : PAISA  (Integer)        e.g. 1000
+ *   • UI Input       : RUPEES (Decimal allowed) e.g. 10, 10.5, 10.75
+ *   • UI Display     : RUPEES (Decimal, trimmed) e.g. ₹10, ₹10.5, ₹10.75
+ *   • Conversion     : paisa = round(rupees × 100)
+ *                      rupees = paisa / 100.0
  * ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -26,7 +33,7 @@ function initRedeemCodesUI(adminUser) {
 
   var allCodes = [];          // full cache (filtered view)
   var currentFilter = 'all';  // all | available | used
-  var currentValueFilter = ''; // '' | '10' | '20' ...
+  var currentValueFilter = ''; // '' | '1000' | '2000' ... (paisa as string)
   var currentSearch = '';
   var currentPage = 1;
   var PAGE_SIZE = 25;
@@ -63,6 +70,32 @@ function initRedeemCodesUI(adminUser) {
   var pendingDeleteId = null;
   var pendingDeleteCode = null;
 
+  // ============== Paisa / Rupees Helpers (Bank Rule) ==============
+  // rupees (decimal, user input) → paisa (integer, db store)
+  function rupeesToPaisa(rupees) {
+    var n = parseFloat(rupees);
+    if (isNaN(n) || n < 0) return 0;
+    return Math.round(n * 100);
+  }
+
+  // paisa (integer from db) → display string in rupees, trimmed
+  // 1000  -> "10"
+  // 1050  -> "10.5"
+  // 1075  -> "10.75"
+  // 50    -> "0.5"
+  function formatRupeesFromPaisa(paisa) {
+    var p = parseInt(paisa, 10) || 0;
+    var r = p / 100.0;
+    if (r % 1 === 0) return String(Math.round(r));
+    var s = r.toFixed(2);
+    s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+
+  function formatRupeesWithSymbol(paisa) {
+    return '₹' + formatRupeesFromPaisa(paisa);
+  }
+
   // ============== Helpers ==============
   function showMsg(text, type) {
     rcResultMsg.textContent = text;
@@ -90,11 +123,12 @@ function initRedeemCodesUI(adminUser) {
   }
 
   // ============== Manual Code Entry System ==============
-  // Each row has: code input + value dropdown + delete button
-  // "+ Add Another Code" adds a new empty row
-  // "Save All Codes" batch-writes all valid rows to Firestore
+  // Each row: code input + ₹ amount input (decimal allowed) + delete button
+  // "+ Add Another Code" appends a new empty row
+  // "Save All Codes" batch-writes all valid rows to Firestore as PAISA
 
-  var entryRows = []; // array of { code: '', value: 10 } — current state of entry list
+  var DEFAULT_VALUE_RUPEES = 10; // default ₹10 per new row (admin can change)
+  var entryRows = [];            // [{ code: '', valueRupees: 10, _isNew: false }]
 
   function renderEntryList() {
     rcEntryList.innerHTML = '';
@@ -130,18 +164,19 @@ function initRedeemCodesUI(adminUser) {
           updateEntrySummary();
         });
 
-        // Value dropdown
-        var valueSelect = document.createElement('select');
-        valueSelect.className = 'rc-row-value';
-        [10, 20, 30, 40, 50].forEach(function(v) {
-          var opt = document.createElement('option');
-          opt.value = v;
-          opt.textContent = '₹' + v;
-          valueSelect.appendChild(opt);
-        });
-        valueSelect.value = String(entryRows[idx].value || 10);
-        valueSelect.addEventListener('change', function() {
-          entryRows[idx].value = parseInt(valueSelect.value, 10);
+        // Value input — number with decimal support (UI = RUPEES)
+        var valueInput = document.createElement('input');
+        valueInput.type = 'number';
+        valueInput.className = 'rc-row-value';
+        valueInput.placeholder = '₹ amount';
+        valueInput.min = '0.01';
+        valueInput.step = '0.01';
+        valueInput.title = 'Enter amount in Rupees. Decimals allowed (e.g. 10, 10.5, 10.75). Stored as paisa.';
+        var existingVal = entryRows[idx].valueRupees;
+        valueInput.value = (existingVal != null && !isNaN(existingVal)) ? existingVal : DEFAULT_VALUE_RUPEES;
+        valueInput.addEventListener('input', function() {
+          var v = parseFloat(valueInput.value);
+          entryRows[idx].valueRupees = (isNaN(v) || v < 0) ? 0 : v;
           updateEntrySummary();
         });
 
@@ -157,7 +192,7 @@ function initRedeemCodesUI(adminUser) {
 
         row.appendChild(num);
         row.appendChild(codeInput);
-        row.appendChild(valueSelect);
+        row.appendChild(valueInput);
         row.appendChild(delBtn);
 
         rcEntryList.appendChild(row);
@@ -175,7 +210,7 @@ function initRedeemCodesUI(adminUser) {
 
   function updateEntrySummary() {
     var valid = entryRows.filter(function(r) {
-      return r.code && r.code.trim().length > 0;
+      return r.code && r.code.trim().length > 0 && r.valueRupees > 0;
     });
     var count = valid.length;
     rcEntrySummary.textContent = count + ' code' + (count === 1 ? '' : 's') + ' ready to save';
@@ -194,7 +229,7 @@ function initRedeemCodesUI(adminUser) {
       showMsg('Maximum 200 codes per batch. Save current batch first.', 'error');
       return;
     }
-    entryRows.push({ code: '', value: 10, _isNew: true });
+    entryRows.push({ code: '', valueRupees: DEFAULT_VALUE_RUPEES, _isNew: true });
     renderEntryList();
     // Scroll the new row into view
     setTimeout(function() {
@@ -206,13 +241,13 @@ function initRedeemCodesUI(adminUser) {
 
   // ============== Save All Codes ==============
   rcSaveBtn.addEventListener('click', async function() {
-    // 1. Collect and validate
+    // 1. Collect and validate (need both code AND positive ₹ amount)
     var validRows = entryRows.filter(function(r) {
-      return r.code && r.code.trim().length > 0;
+      return r.code && r.code.trim().length > 0 && r.valueRupees > 0;
     });
 
     if (validRows.length === 0) {
-      showMsg('Please enter at least one redeem code before saving.', 'error');
+      showMsg('Please enter at least one redeem code with a valid ₹ amount before saving.', 'error');
       return;
     }
 
@@ -227,7 +262,10 @@ function initRedeemCodesUI(adminUser) {
         continue;
       }
       seen[code] = true;
-      cleanRows.push({ code: code, value: validRows[i].value });
+      cleanRows.push({
+        code: code,
+        valuePaisa: rupeesToPaisa(validRows[i].valueRupees) // 🏦 STORE AS PAISA
+      });
     }
 
     if (duplicates.length > 0) {
@@ -254,7 +292,6 @@ function initRedeemCodesUI(adminUser) {
     try {
       var batchId = 'BATCH_' + Date.now();
       var createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      var batch = db.batch();
       var MAX_BATCH = 450; // Firestore batch limit is 500, keep buffer
 
       // If more than MAX_BATCH, write multiple batches sequentially
@@ -268,7 +305,7 @@ function initRedeemCodesUI(adminUser) {
           var docRef = CODES_REF.doc();
           var data = {
             code: item.code,
-            value: item.value,
+            value: item.valuePaisa, // 🏦 PAISA (integer)
             isUsed: false,
             purchasedBy: '',
             purchasedAt: null,
@@ -324,56 +361,57 @@ function initRedeemCodesUI(adminUser) {
       rcStockBody.innerHTML = '<tr><td colspan="6" class="rc-empty">Loading...</td></tr>';
       var snapshot = await CODES_REF.get();
 
-      var stats = {};
-      [10, 20, 30, 40, 50].forEach(function(v) {
-        stats[v] = { total: 0, available: 0, used: 0 };
-      });
+      // Group by paisa value (as stored in DB)
+      var stats = {}; // { paisa: { total, available, used } }
 
-      var totalAll = 0, availableAll = 0, usedAll = 0, totalValueAll = 0;
+      var totalAll = 0, availableAll = 0, usedAll = 0, totalValuePaisa = 0;
 
       snapshot.forEach(function(doc) {
         var d = doc.data();
-        var v = d.value;
-        if (!stats[v]) stats[v] = { total: 0, available: 0, used: 0 };
-        stats[v].total++;
+        var p = parseInt(d.value, 10) || 0; // 🏦 read paisa from db
+        if (!stats[p]) stats[p] = { total: 0, available: 0, used: 0 };
+        stats[p].total++;
         if (d.isUsed) {
-          stats[v].used++;
+          stats[p].used++;
           usedAll++;
         } else {
-          stats[v].available++;
+          stats[p].available++;
           availableAll++;
         }
         totalAll++;
-        totalValueAll += (v || 0);
+        totalValuePaisa += p;
       });
 
       // Update top stat cards
       rcTotalCodes.textContent = totalAll;
       rcAvailable.textContent = availableAll;
       rcUsed.textContent = usedAll;
-      rcTotalValue.textContent = '₹' + totalValueAll.toLocaleString('en-IN');
+      rcTotalValue.textContent = formatRupeesWithSymbol(totalValuePaisa); // 🏦 show rupees
 
-      // Render stock table
+      // Render stock table (sorted by paisa ascending)
       rcStockBody.innerHTML = '';
       var hasRows = false;
-      [10, 20, 30, 40, 50].forEach(function(v) {
-        var s = stats[v];
-        if (s.total === 0) return;
+      var sortedPaisa = Object.keys(stats).map(Number).sort(function(a, b) { return a - b; });
+
+      for (var k = 0; k < sortedPaisa.length; k++) {
+        var paisa = sortedPaisa[k];
+        var s = stats[paisa];
+        if (s.total === 0) continue;
         hasRows = true;
         var pctUsed = s.total > 0 ? Math.round((s.used / s.total) * 100) : 0;
         var tr = document.createElement('tr');
         tr.innerHTML =
-          '<td class="rc-value-cell">₹' + v + '</td>' +
+          '<td class="rc-value-cell">' + formatRupeesWithSymbol(paisa) + '</td>' +
           '<td>' + s.total + '</td>' +
           '<td style="color:#22c55e;font-weight:600;">' + s.available + '</td>' +
           '<td style="color:#ef4444;font-weight:600;">' + s.used + '</td>' +
           '<td>' + pctUsed + '%</td>' +
           '<td><div class="rc-progress-bar"><div class="rc-progress-fill" style="width:' + pctUsed + '%"></div></div></td>';
         rcStockBody.appendChild(tr);
-      });
+      }
 
       if (!hasRows) {
-        rcStockBody.innerHTML = '<tr><td colspan="6" class="rc-empty">No codes yet. Generate some above.</td></tr>';
+        rcStockBody.innerHTML = '<tr><td colspan="6" class="rc-empty">No codes yet. Add some above.</td></tr>';
       }
     } catch (err) {
       console.error('[RedeemCodes] Stock summary error:', err);
@@ -409,8 +447,8 @@ function initRedeemCodesUI(adminUser) {
       // Status filter
       if (currentFilter === 'available' && c.isUsed) return false;
       if (currentFilter === 'used' && !c.isUsed) return false;
-      // Value filter
-      if (currentValueFilter && String(c.value) !== currentValueFilter) return false;
+      // Value filter (paisa string comparison)
+      if (currentValueFilter && String(parseInt(c.value, 10)) !== currentValueFilter) return false;
       // Search
       if (currentSearch) {
         var q = currentSearch.toLowerCase();
@@ -451,7 +489,7 @@ function initRedeemCodesUI(adminUser) {
 
       tr.innerHTML =
         '<td class="rc-code-cell">' + escapeHtml(c.code || '—') + '</td>' +
-        '<td class="rc-value-cell">₹' + (c.value || 0) + '</td>' +
+        '<td class="rc-value-cell">' + formatRupeesWithSymbol(c.value) + '</td>' + // 🏦 show rupees
         '<td>' + statusBadge + '</td>' +
         '<td title="' + escapeHtml(c.purchasedBy || '') + '">' + escapeHtml(truncate(c.purchasedBy, 18)) + '</td>' +
         '<td>' + formatTimestamp(c.createdAt) + '</td>' +
@@ -610,7 +648,7 @@ function initRedeemCodesUI(adminUser) {
   });
 
   rcFilterValue.addEventListener('change', function() {
-    currentValueFilter = rcFilterValue.value;
+    currentValueFilter = rcFilterValue.value; // '' or paisa-as-string e.g. '1000'
     currentPage = 1;
     renderCodesTable();
   });
@@ -640,14 +678,15 @@ function initRedeemCodesUI(adminUser) {
       return;
     }
 
-    var headers = ['Code', 'Value', 'IsUsed', 'PurchasedBy', 'CreatedAt', 'PurchasedAt', 'BatchId', 'ExpiryDate'];
+    var headers = ['Code', 'ValuePaisa', 'ValueRupees', 'IsUsed', 'PurchasedBy', 'CreatedAt', 'PurchasedAt', 'BatchId', 'ExpiryDate'];
     var rows = [headers.join(',')];
 
     for (var i = 0; i < filtered.length; i++) {
       var c = filtered[i];
       var row = [
         '"' + (c.code || '') + '"',
-        c.value || 0,
+        parseInt(c.value, 10) || 0,                                  // 🏦 raw paisa
+        formatRupeesFromPaisa(c.value),                              // 🏦 rupees (decimal, trimmed)
         c.isUsed ? 'Yes' : 'No',
         '"' + (c.purchasedBy || '') + '"',
         '"' + formatTimestamp(c.createdAt) + '"',
