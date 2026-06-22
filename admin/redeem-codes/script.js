@@ -122,95 +122,128 @@ function initRedeemCodesUI(adminUser) {
     return str.length > n ? str.substring(0, n) + '…' : str;
   }
 
-  // ============== Manual Code Entry System ==============
+  // ============== Manual Code Entry System (DOM-based) ==============
+  // Each row is a self-contained DOM element with its own inputs.
+  // State is read DIRECTLY from the DOM at save time — no separate state
+  // array, no closure sync issues. This guarantees every row entered by
+  // the admin is captured when "Save All Codes" is clicked.
+  //
   // Each row: code input + ₹ amount input (decimal allowed) + delete button
   // "+ Add Another Code" appends a new empty row
   // "Save All Codes" batch-writes all valid rows to Firestore as PAISA
 
   var DEFAULT_VALUE_RUPEES = 10; // default ₹10 per new row (admin can change)
-  var entryRows = [];            // [{ code: '', valueRupees: 10, _isNew: false }]
+  var MAX_ROWS = 200;
 
-  function renderEntryList() {
-    rcEntryList.innerHTML = '';
+  function showEmptyPlaceholder() {
+    // Don't double-add
+    if (document.getElementById('rcEntryEmpty')) return;
+    var empty = document.createElement('div');
+    empty.className = 'rc-entry-empty';
+    empty.id = 'rcEntryEmpty';
+    empty.textContent = 'No codes added yet. Click "Add Another Code" to start entering redeem codes.';
+    rcEntryList.appendChild(empty);
+  }
 
-    if (entryRows.length === 0) {
-      var empty = document.createElement('div');
-      empty.className = 'rc-entry-empty';
-      empty.textContent = 'No codes added yet. Click "Add Another Code" to start entering redeem codes.';
-      rcEntryList.appendChild(empty);
+  function hideEmptyPlaceholder() {
+    var existing = document.getElementById('rcEntryEmpty');
+    if (existing) existing.remove();
+  }
+
+  function renumberRows() {
+    var rows = rcEntryList.querySelectorAll('.rc-entry-row');
+    for (var i = 0; i < rows.length; i++) {
+      var num = rows[i].querySelector('.rc-row-num');
+      if (num) num.textContent = '#' + (i + 1);
+    }
+  }
+
+  function getRowCount() {
+    return rcEntryList.querySelectorAll('.rc-entry-row').length;
+  }
+
+  // Read all rows directly from the DOM — this is the source of truth at save time.
+  function getEntryRowsFromDOM() {
+    var rows = rcEntryList.querySelectorAll('.rc-entry-row');
+    var result = [];
+    for (var i = 0; i < rows.length; i++) {
+      var codeInput = rows[i].querySelector('.rc-row-code');
+      var valueInput = rows[i].querySelector('.rc-row-value');
+      var code = codeInput ? codeInput.value.trim() : '';
+      var rawVal = valueInput ? valueInput.value : '';
+      var valRupees = parseFloat(rawVal);
+      result.push({
+        code: code,
+        valueRupees: (isNaN(valRupees) || valRupees < 0) ? 0 : valRupees,
+        rawValue: rawVal
+      });
+    }
+    return result;
+  }
+
+  function createEntryRow(initialCode, initialValueRupees, focusAfterCreate) {
+    var row = document.createElement('div');
+    row.className = 'rc-entry-row';
+
+    // Row number (will be set by renumberRows)
+    var num = document.createElement('div');
+    num.className = 'rc-row-num';
+    num.textContent = '#?';
+
+    // Code input
+    var codeInput = document.createElement('input');
+    codeInput.type = 'text';
+    codeInput.className = 'rc-row-code';
+    codeInput.placeholder = 'Paste Google Play redeem code here...';
+    codeInput.value = initialCode || '';
+    codeInput.maxLength = 100;
+    codeInput.addEventListener('input', updateEntrySummary);
+
+    // Value input — number with decimal support (UI = RUPEES)
+    var valueInput = document.createElement('input');
+    valueInput.type = 'number';
+    valueInput.className = 'rc-row-value';
+    valueInput.placeholder = '₹ amount';
+    valueInput.min = '0.01';
+    valueInput.step = '0.01';
+    valueInput.title = 'Enter amount in Rupees. Decimals allowed (e.g. 10, 10.5, 10.75). Stored as paisa.';
+    valueInput.value = (initialValueRupees != null && !isNaN(initialValueRupees))
+      ? initialValueRupees
+      : DEFAULT_VALUE_RUPEES;
+    valueInput.addEventListener('input', updateEntrySummary);
+
+    // Delete button — removes this DOM row directly (no state to splice)
+    var delBtn = document.createElement('button');
+    delBtn.className = 'rc-row-delete';
+    delBtn.title = 'Remove this code';
+    delBtn.type = 'button';
+    delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    delBtn.addEventListener('click', function() {
+      row.remove();
+      renumberRows();
+      if (getRowCount() === 0) showEmptyPlaceholder();
       updateEntrySummary();
-      return;
+    });
+
+    row.appendChild(num);
+    row.appendChild(codeInput);
+    row.appendChild(valueInput);
+    row.appendChild(delBtn);
+
+    rcEntryList.appendChild(row);
+    renumberRows();
+
+    if (focusAfterCreate) {
+      setTimeout(function() { codeInput.focus(); }, 50);
     }
 
-    for (var i = 0; i < entryRows.length; i++) {
-      (function(idx) {
-        var row = document.createElement('div');
-        row.className = 'rc-entry-row';
-
-        // Row number
-        var num = document.createElement('div');
-        num.className = 'rc-row-num';
-        num.textContent = '#' + (idx + 1);
-
-        // Code input
-        var codeInput = document.createElement('input');
-        codeInput.type = 'text';
-        codeInput.className = 'rc-row-code';
-        codeInput.placeholder = 'Paste Google Play redeem code here...';
-        codeInput.value = entryRows[idx].code || '';
-        codeInput.maxLength = 100;
-        codeInput.addEventListener('input', function() {
-          entryRows[idx].code = codeInput.value.trim();
-          updateEntrySummary();
-        });
-
-        // Value input — number with decimal support (UI = RUPEES)
-        var valueInput = document.createElement('input');
-        valueInput.type = 'number';
-        valueInput.className = 'rc-row-value';
-        valueInput.placeholder = '₹ amount';
-        valueInput.min = '0.01';
-        valueInput.step = '0.01';
-        valueInput.title = 'Enter amount in Rupees. Decimals allowed (e.g. 10, 10.5, 10.75). Stored as paisa.';
-        var existingVal = entryRows[idx].valueRupees;
-        valueInput.value = (existingVal != null && !isNaN(existingVal)) ? existingVal : DEFAULT_VALUE_RUPEES;
-        valueInput.addEventListener('input', function() {
-          var v = parseFloat(valueInput.value);
-          entryRows[idx].valueRupees = (isNaN(v) || v < 0) ? 0 : v;
-          updateEntrySummary();
-        });
-
-        // Delete button
-        var delBtn = document.createElement('button');
-        delBtn.className = 'rc-row-delete';
-        delBtn.title = 'Remove this code';
-        delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-        delBtn.addEventListener('click', function() {
-          entryRows.splice(idx, 1);
-          renderEntryList();
-        });
-
-        row.appendChild(num);
-        row.appendChild(codeInput);
-        row.appendChild(valueInput);
-        row.appendChild(delBtn);
-
-        rcEntryList.appendChild(row);
-
-        // Auto-focus the code input on freshly added rows
-        if (entryRows[idx]._isNew) {
-          entryRows[idx]._isNew = false;
-          setTimeout(function() { codeInput.focus(); }, 50);
-        }
-      })(i);
-    }
-
-    updateEntrySummary();
+    return row;
   }
 
   function updateEntrySummary() {
-    var valid = entryRows.filter(function(r) {
-      return r.code && r.code.trim().length > 0 && r.valueRupees > 0;
+    var domRows = getEntryRowsFromDOM();
+    var valid = domRows.filter(function(r) {
+      return r.code && r.code.length > 0 && r.valueRupees > 0;
     });
     var count = valid.length;
     rcEntrySummary.textContent = count + ' code' + (count === 1 ? '' : 's') + ' ready to save';
@@ -224,13 +257,12 @@ function initRedeemCodesUI(adminUser) {
   }
 
   function addNewRow() {
-    // Cap at 200 rows to prevent UI slowdown
-    if (entryRows.length >= 200) {
-      showMsg('Maximum 200 codes per batch. Save current batch first.', 'error');
+    if (getRowCount() >= MAX_ROWS) {
+      showMsg('Maximum ' + MAX_ROWS + ' codes per batch. Save current batch first.', 'error');
       return;
     }
-    entryRows.push({ code: '', valueRupees: DEFAULT_VALUE_RUPEES, _isNew: true });
-    renderEntryList();
+    hideEmptyPlaceholder();
+    createEntryRow('', DEFAULT_VALUE_RUPEES, true);
     // Scroll the new row into view
     setTimeout(function() {
       rcEntryList.scrollTop = rcEntryList.scrollHeight;
@@ -239,24 +271,39 @@ function initRedeemCodesUI(adminUser) {
 
   rcAddRowBtn.addEventListener('click', addNewRow);
 
+  // Initial empty state
+  showEmptyPlaceholder();
+  updateEntrySummary();
+
   // ============== Save All Codes ==============
   rcSaveBtn.addEventListener('click', async function() {
-    // 1. Collect and validate (need both code AND positive ₹ amount)
-    var validRows = entryRows.filter(function(r) {
-      return r.code && r.code.trim().length > 0 && r.valueRupees > 0;
+    // 1. Read ALL rows directly from the DOM — no state sync, guaranteed fresh.
+    var allRows = getEntryRowsFromDOM();
+
+    // 2. Filter: need both code AND positive ₹ amount
+    var validRows = allRows.filter(function(r) {
+      return r.code && r.code.length > 0 && r.valueRupees > 0;
     });
+
+    console.log('[RedeemCodes] Save click — total rows:', allRows.length,
+                '| valid rows:', validRows.length);
+    if (allRows.length > 0) {
+      console.log('[RedeemCodes] Row dump:', allRows.map(function(r) {
+        return { code: r.code, valueRupees: r.valueRupees, rawValue: r.rawValue };
+      }));
+    }
 
     if (validRows.length === 0) {
       showMsg('Please enter at least one redeem code with a valid ₹ amount before saving.', 'error');
       return;
     }
 
-    // Normalize codes (uppercase, trim) and check for duplicates within this batch
+    // 3. Normalize codes (uppercase, trim) and dedupe within this batch
     var seen = {};
     var duplicates = [];
     var cleanRows = [];
     for (var i = 0; i < validRows.length; i++) {
-      var code = validRows[i].code.trim().toUpperCase();
+      var code = validRows[i].code.toUpperCase();
       if (seen[code]) {
         duplicates.push(code);
         continue;
@@ -277,14 +324,14 @@ function initRedeemCodesUI(adminUser) {
       return;
     }
 
-    // 2. Get expiry (applies to all codes in this batch)
+    // 4. Get expiry (applies to all codes in this batch)
     var expiryRaw = rcExpiry.value;
     var expiryDate = null;
     if (expiryRaw) {
       expiryDate = firebase.firestore.Timestamp.fromDate(new Date(expiryRaw + 'T23:59:59'));
     }
 
-    // 3. Save to Firestore
+    // 5. Save to Firestore
     rcSaveBtn.disabled = true;
     rcSaveBtn.querySelector('span').textContent = 'Saving...';
     showMsg('Saving ' + cleanRows.length + ' codes to Firestore...', 'info');
@@ -294,7 +341,6 @@ function initRedeemCodesUI(adminUser) {
       var createdAt = firebase.firestore.FieldValue.serverTimestamp();
       var MAX_BATCH = 450; // Firestore batch limit is 500, keep buffer
 
-      // If more than MAX_BATCH, write multiple batches sequentially
       var batchesWritten = 0;
       while (batchesWritten < cleanRows.length) {
         var chunkSize = Math.min(MAX_BATCH, cleanRows.length - batchesWritten);
@@ -321,12 +367,15 @@ function initRedeemCodesUI(adminUser) {
         batchesWritten += chunkSize;
       }
 
+      console.log('[RedeemCodes] Save success — wrote', cleanRows.length,
+                  'codes. Batch:', batchId);
       showMsg('✅ ' + cleanRows.length + ' codes saved successfully! Batch: ' + batchId, 'success');
 
       // Clear entry list + expiry
-      entryRows = [];
+      rcEntryList.innerHTML = '';
+      showEmptyPlaceholder();
       rcExpiry.value = '';
-      renderEntryList();
+      updateEntrySummary();
 
       // Reload data
       loadAllCodes();
@@ -342,16 +391,17 @@ function initRedeemCodesUI(adminUser) {
   });
 
   rcClearBtn.addEventListener('click', function() {
-    if (entryRows.length === 0) {
+    if (getRowCount() === 0) {
       rcExpiry.value = '';
       rcResultMsg.className = 'rc-result-msg';
       return;
     }
     if (confirm('Clear all entered codes? This cannot be undone.')) {
-      entryRows = [];
+      rcEntryList.innerHTML = '';
+      showEmptyPlaceholder();
       rcExpiry.value = '';
       rcResultMsg.className = 'rc-result-msg';
-      renderEntryList();
+      updateEntrySummary();
     }
   });
 
@@ -728,7 +778,7 @@ function initRedeemCodesUI(adminUser) {
   document.head.appendChild(spinStyle);
 
   // ============== Initial Load ==============
-  renderEntryList();          // render empty entry list with placeholder
+  // (entry list placeholder is initialized above inside the entry system block)
   loadStockSummary();
   loadAllCodes();
 }
