@@ -3,23 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>EDMFire Admin - Wallet</title>
+  <title>EDMFire Admin - Blogs / Announcements</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../common/layout.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="dashboard">
+    <!-- Mobile Top Bar -->
     <div class="mobile-topbar">
       <button class="hamburger-btn" id="hamburgerBtn">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <span class="mobile-topbar-title">Wallet</span>
+      <span class="mobile-topbar-title">Blogs</span>
       <button class="mobile-topbar-logout" id="mobileLogoutBtn" title="Sign Out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
+
+    <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-brand">
         <div class="sidebar-brand-icon">
@@ -30,6 +36,7 @@
           <span class="sidebar-brand-role">Admin Panel</span>
         </div>
       </div>
+
       <nav class="sidebar-nav">
         <a class="nav-item" href="/admin/dashboard/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -38,6 +45,7 @@
         <a class="nav-item" href="/admin/chats/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Support Chats</span>
+          <div class="nav-badge" id="navChatBadge" style="display:none;">0</div>
         </a>
         <a class="nav-item" href="/admin/world-chat-rooms/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -68,10 +76,6 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Players</span>
         </a>
-        <a class="nav-item active" href="/admin/wallet/">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <span>Wallet</span>
-        </a>
         <a class="nav-item" href="/admin/notifications/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span>Notifications</span>
@@ -84,7 +88,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
           <span>Redeem Codes</span>
         </a>
-        <a class="nav-item" href="/admin/blogs/">
+        <a class="nav-item active" href="/admin/blogs/">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <span>Blogs</span>
         </a>
@@ -92,12 +96,13 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Settings</span>
         </a>
-              <a class="nav-item nav-external" href="https://host.edmfire.in/" target="_blank" rel="noopener noreferrer">
+        <a class="nav-item nav-external" href="https://host.edmfire.in/" target="_blank" rel="noopener noreferrer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span>Host Panel</span>
           <svg class="nav-external-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
       </nav>
+
       <div class="sidebar-footer">
         <div class="sidebar-user">
           <div class="sidebar-user-avatar" id="sidebarUserAvatar">A</div>
@@ -111,21 +116,91 @@
         </button>
       </div>
     </div>
+
+    <!-- Main Content -->
     <div class="main-content">
       <div class="page-content">
         <div class="page-header">
-          <h1 class="page-title">Wallet & Payments</h1>
-          <p class="page-subtitle">Approve withdrawals and track payments</p>
+          <h1 class="page-title">📝 Blog / Announcement Manager</h1>
+          <p class="page-subtitle">Create or update blog posts · Firestore path: <code>Announcement/{autoId}</code></p>
         </div>
-        <div class="empty-page">
-          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#3a3d52" stroke-width="1"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <h2>Coming Soon</h2>
-          <p>Payment management will be available here</p>
+
+        <!-- Composer Card -->
+        <div class="bg-card">
+          <div class="bg-card-header">
+            <h2 class="bg-card-title" id="bgFormTitle">➕ Create New Blog</h2>
+            <p class="bg-card-subtitle" id="bgFormSubtitle">Fill in title and body, then click Save. All spaces, tabs, and line breaks are preserved exactly.</p>
+          </div>
+
+          <div class="bg-form-row">
+            <label for="bgTitle">Title</label>
+            <input
+              type="text"
+              id="bgTitle"
+              placeholder="e.g. 🎉 Summer Tournament Announcement"
+              maxlength="200"
+              autocomplete="off"
+            />
+            <div class="bg-char-count"><span id="bgTitleCount">0</span>/200</div>
+          </div>
+
+          <div class="bg-form-row">
+            <label for="bgBody">Body</label>
+            <textarea
+              id="bgBody"
+              rows="12"
+              placeholder="Write full blog content here.&#10;&#10;Line breaks, tabs, and multiple spaces will be stored EXACTLY as you type them.&#10;When you click Update on a saved blog, the same content will load back into this box for editing."
+            ></textarea>
+            <div class="bg-char-count"><span id="bgBodyCount">0</span> chars · <span id="bgBodyLines">0</span> lines</div>
+          </div>
+
+          <div class="bg-actions">
+            <button id="bgSaveBtn" class="bg-btn-primary" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Save Blog</span>
+            </button>
+            <button id="bgCancelBtn" class="bg-btn-secondary" style="display:none;">
+              Cancel Edit
+            </button>
+            <button id="bgClearBtn" class="bg-btn-secondary">
+              Clear Form
+            </button>
+          </div>
+
+          <div class="bg-result-msg" id="bgResultMsg"></div>
+        </div>
+
+        <!-- List Card -->
+        <div class="bg-card">
+          <div class="bg-card-header">
+            <h2 class="bg-card-title">📋 All Saved Blogs</h2>
+            <p class="bg-card-subtitle">Showing titles only · click Update to load a blog back into the editor above</p>
+          </div>
+
+          <div class="bg-list-controls">
+            <input type="text" id="bgSearchInput" class="bg-search" placeholder="Search by title..." />
+            <button id="bgRefreshBtn" class="bg-btn-secondary" title="Refresh list">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <div class="bg-list-count" id="bgListCount">Loading...</div>
+
+          <div class="bg-list" id="bgList">
+            <!-- Blog items rendered here -->
+          </div>
         </div>
       </div>
     </div>
   </div>
-  <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -135,6 +210,7 @@
   <script src="/api/firebase-config"></script>
   <script src="../../firebase/auth.js"></script>
   <script src="../common/nav.js"></script>
-  <script>initAuthGuard(); initCommonUI();</script>
+  <script src="script.js"></script>
+
 </body>
 </html>
